@@ -1,0 +1,60 @@
+joints_state_controller:
+  type: "joint_state_controller/JointStateController"
+  publish_rate: 100
+
+master_motion_controller:
+  type: "effort_controllers/JointTrajectoryController"
+  joints:
+    - link1_1_joint
+    - link1_2_joint
+    - link1_3_joint
+    - link1_4_joint
+    - link1_5_joint
+
+    - link2_1_joint
+    - link2_2_joint
+    - link2_3_joint
+    - link2_4_joint
+    - link2_5_joint
+
+  gains:
+    link1_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link1_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link1_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link1_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link1_5_joint: {p: 45.0, i: 0.2, d: 0}
+
+    link2_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link2_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link2_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link2_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link2_5_joint: {p: 45.0, i: 0.2, d: 0}
+
+
+slave_motion_controller:
+  type: "effort_controllers/JointTrajectoryController"
+  joints:
+    - link3_1_joint
+    - link3_2_joint
+    - link3_3_joint
+    - link3_4_joint
+    - link3_5_joint
+
+    - link4_1_joint
+    - link4_2_joint
+    - link4_3_joint
+    - link4_4_joint
+    - link4_5_joint
+
+  gains:
+    link3_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link3_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link3_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link3_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link3_5_joint: {p: 45.0, i: 0.2, d: 0}
+
+    link4_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link4_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link4_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link4_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link4_5_joint: {p: 45.0, i: 0.2, d: 0}
