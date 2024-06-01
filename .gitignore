@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# catkin_make
+build/
+devel/
