@@ -168,33 +168,7 @@ void motion_physical::dxl_positions_txRx(ArmDef& Arm)
 // 功能：将机械臂回零功能打包
 void motion_physical::homing(ArmDef& Arm)
 {
-    vector<int32_t> zero = {500,-500,500,-500,500,-500};
-
-    dxl_positions_tx(Arm, zero);
-    delay_ms(10);
-    while(1)
-    {
-        dxl_positions_txRx(Arm);
-
-        uint8_t num = 0;
-        for(size_t i=0;i<Arm.DXL_ID.size();i++)
-        {
-            if(abs(Arm.present_position[i]-zero[i]) < DXL_MOVING_STATUS_THRESHOLD)
-            {
-                num++;
-            }
-        }
-        if(num == Arm.DXL_ID.size())
-        {
-            break;
-        }
-        delay_ms(10);
-    }
-}
-
-// 配置从机械臂的电机并使其回零
-void motion_physical::config_slave_dxl(ArmDef& Arm)
-{
+    vector<int32_t> zero = {0,0,0,0,0,0};
     uint8_t dxl_error = 0;
     int dxl_comm_result = COMM_TX_FAIL;
     int dxl_addparam_result = false;
@@ -241,6 +215,35 @@ void motion_physical::config_slave_dxl(ArmDef& Arm)
     }
     
     delay_ms(50);
+
+    dxl_positions_tx(Arm, zero);
+    delay_ms(10);
+    while(1)
+    {
+        dxl_positions_txRx(Arm);
+
+        uint8_t num = 0;
+        for(size_t i=0;i<Arm.DXL_ID.size();i++)
+        {
+            if(abs(Arm.present_position[i]-zero[i]) < DXL_MOVING_STATUS_THRESHOLD)
+            {
+                num++;
+            }
+        }
+        if(num == Arm.DXL_ID.size())
+        {
+            break;
+        }
+        delay_ms(10);
+    }
+}
+
+// 配置从机械臂的电机并使其回零
+void motion_physical::config_slave_dxl(ArmDef& Arm)
+{
+    uint8_t dxl_error = 0;
+    int dxl_comm_result = COMM_TX_FAIL;
+
     // Return to zero
     homing(Arm);
 
@@ -277,50 +280,7 @@ void motion_physical::config_master_dxl(ArmDef& Arm)
 {
     uint8_t dxl_error = 0;
     int dxl_comm_result = COMM_TX_FAIL;
-    int dxl_addparam_result = false;
-    uint8_t dxl_model_number = 0;
 
-    if (!Arm.portHandler->openPort())
-    {
-        ROS_ERROR("Failed to open the port!");
-    }
-    if (!Arm.portHandler->setBaudRate(BAUDRATE))
-    {
-        ROS_ERROR("Failed to set the baudrate!");
-    }
-
-    for(size_t i=0; i<Arm.DXL_ID.size(); i++)
-    {
-        // ping
-        packetHandler->ping(Arm.portHandler, Arm.DXL_ID[i], (uint16_t*)&dxl_model_number, &dxl_error);
-        if(dxl_error != 0)
-            printf("%s", packetHandler->getRxPacketError(dxl_error));
-        else
-            printf("[ID:%03d] ping Succeeded. Dynamixel model number : %d",Arm.DXL_ID[i], dxl_model_number);
-
-        // disable Dynamixel Torque
-        packetHandler->write1ByteTxRx(Arm.portHandler, Arm.DXL_ID[i], ADDR_TORQUE_ENABLE, TORQUE_DISABLE, &dxl_error);
-        if(dxl_error != 0)
-            printf("%s", packetHandler->getRxPacketError(dxl_error));
-        else
-            printf("[ID:%03d] disable Dynamixel Torque success", Arm.DXL_ID[i]);
-
-        // Enable Dynamixel Torque
-        packetHandler->write1ByteTxRx(Arm.portHandler, Arm.DXL_ID[i], ADDR_TORQUE_ENABLE, TORQUE_ENABLE, &dxl_error);
-        if(dxl_error != 0)
-            printf("%s", packetHandler->getRxPacketError(dxl_error));
-        else
-            printf("[ID:%03d] Enable Dynamixel Torque success", Arm.DXL_ID[i]);
-
-        // add groupSyncRead storage
-        dxl_addparam_result = Arm.groupSyncRead.addParam(Arm.DXL_ID[i]);
-        if (dxl_addparam_result != true)
-        {
-            ROS_ERROR("Failed to addparam to groupSyncRead for Dynamixel ID %d", Arm.DXL_ID[i]);
-        }
-    }
-
-    delay_ms(20);
     // Return to zero
     homing(Arm);
 

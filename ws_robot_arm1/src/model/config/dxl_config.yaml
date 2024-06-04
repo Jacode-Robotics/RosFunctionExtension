@@ -1,15 +1,15 @@
 BAUDRATE: 2000000           #串口波特率
-control_cycle: 0.01         #电机控制周期
+control_cycle: 0.002         #电机控制周期
 
 joints_number: 5            #单台机械臂的关节数量（目前支持10个即两组机械臂）
 arms_number: 2              #机械臂数量（包括主和从）
 
 MasterLeftDxl:              #主机械臂1
   DXL_ID: [1,2,3,4,5]                   #电机ID
-  DEVICE_NAME: /dev/ttyUSB1       #串口号（支持每台机械臂使用相同或不同串口号）
+  DEVICE_NAME: /dev/ttyUSB0       #串口号（支持每台机械臂使用相同或不同串口号）
 
 SlaveLeftDxl:               #从机械臂1
-  DXL_ID: [1,2,3,4,5]
+  DXL_ID: [7,8,9,10,11]
   DEVICE_NAME: /dev/ttyUSB0
 
 # 该处为拓展使用
