@@ -22,21 +22,10 @@ void motion_simulation::MasterPresentPositionsRead(const sensor_msgs::JointState
 
     JointTrajectory.points.resize(1);
     JointTrajectory.points[0].positions.resize(10);
-    JointTrajectory.points[0].velocities.resize(10);
-    JointTrajectory.points[0].accelerations.resize(10);
-    // JointTrajectory.points[0].effort.resize(10);
-    JointTrajectory.points[0].positions[0] = jointstate->position[0];
-    JointTrajectory.points[0].positions[1] = jointstate->position[1];
-    JointTrajectory.points[0].positions[2] = jointstate->position[2];
-    JointTrajectory.points[0].positions[3] = jointstate->position[3];
-    JointTrajectory.points[0].positions[4] = jointstate->position[4];
-
-    JointTrajectory.points[0].positions[5] = jointstate->position[5];
-    JointTrajectory.points[0].positions[6] = jointstate->position[6];
-    JointTrajectory.points[0].positions[7] = jointstate->position[7];
-    JointTrajectory.points[0].positions[8] = jointstate->position[8];
-    JointTrajectory.points[0].positions[9] = jointstate->position[9];
-
+    for(size_t i = 0; i < 10; i++)
+    {
+        JointTrajectory.points[0].positions[i] = jointstate->position[i];
+    }
     JointTrajectory.points[0].time_from_start = ros::Duration(0.04);
 
     slave_goal_positions_pub.publish(JointTrajectory);
