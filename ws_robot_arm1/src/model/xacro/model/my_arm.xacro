@@ -28,8 +28,8 @@
 
     <!-- 创建机械臂 -->
     <xacro:Robot_arm_create robot_num="1" pos_l="-${fixed_block_length/2-0.5}" pos_w="${fixed_block_wide/2-0.5}" />
-    <!-- <xacro:Robot_arm_create robot_num="2" pos_l="-${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" /> -->
+    <xacro:Robot_arm_create robot_num="2" pos_l="-${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" />
     <xacro:Robot_arm_create robot_num="3" pos_l="${fixed_block_length/2-0.5}" pos_w="${fixed_block_wide/2-0.5}" />
-    <!-- <xacro:Robot_arm_create robot_num="4" pos_l="${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" /> -->
+    <xacro:Robot_arm_create robot_num="4" pos_l="${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" />
     
 </robot>

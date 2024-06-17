@@ -72,7 +72,17 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        base_link2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         base_link3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -107,6 +117,31 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        link2_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link2_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link2_3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link2_4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link2_5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         link3_1:
           Alpha: 1
           Show Axes: false
@@ -128,6 +163,31 @@ Visualization Manager:
           Show Trail: false
           Value: true
         link3_5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link4_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link4_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link4_3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link4_4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link4_5:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -157,13 +217,13 @@ Visualization Manager:
       Value: false
     - Alpha: 1
       Class: rviz/Axes
-      Enabled: true
+      Enabled: false
       Length: 1
       Name: Axes
       Radius: 0.009999999776482582
       Reference Frame: <Fixed Frame>
       Show Trail: false
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -192,7 +252,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.599703788757324
+      Distance: 3.4968743324279785
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -200,17 +260,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.007227628026157618
-        Y: 0.198552668094635
-        Z: 0.2749389111995697
+        X: -0.026736300438642502
+        Y: -0.05264289677143097
+        Z: 0.3340464234352112
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3947955369949341
+      Pitch: 0.2397947460412979
       Target Frame: <Fixed Frame>
-      Yaw: 0.02039911225438118
+      Yaw: 6.233573913574219
     Saved: ~
 Window Geometry:
   Displays:

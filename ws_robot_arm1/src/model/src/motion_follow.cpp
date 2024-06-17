@@ -7,23 +7,21 @@ void motion_simulation::MasterPresentPositionsRead(const sensor_msgs::JointState
     trajectory_msgs::JointTrajectory JointTrajectory;
     JointTrajectory.header.stamp = ros::Time::now()+ros::Duration(0.003);
 
-    JointTrajectory.joint_names.resize(10);
-    JointTrajectory.joint_names[0] = "link3_1_joint";
-    JointTrajectory.joint_names[1] = "link3_2_joint";
-    JointTrajectory.joint_names[2] = "link3_3_joint";
-    JointTrajectory.joint_names[3] = "link3_4_joint";
-    JointTrajectory.joint_names[4] = "link3_5_joint";
-
-    JointTrajectory.joint_names[5] = "link4_1_joint";
-    JointTrajectory.joint_names[6] = "link4_2_joint";
-    JointTrajectory.joint_names[7] = "link4_3_joint";
-    JointTrajectory.joint_names[8] = "link4_4_joint";
-    JointTrajectory.joint_names[9] = "link4_5_joint";
-
+    JointTrajectory.joint_names.resize(dxl_num*2);
     JointTrajectory.points.resize(1);
-    JointTrajectory.points[0].positions.resize(10);
-    for(size_t i = 0; i < 10; i++)
+    JointTrajectory.points[0].positions.resize(dxl_num*2);
+    for(size_t i = 0; i < dxl_num*2; i++)
     {
+        if(i<dxl_num)
+        {
+            std::string str = std::to_string(i+1);
+            JointTrajectory.joint_names[i] = "link3_" + str + "_joint";
+        }
+        else
+        {
+            std::string str = std::to_string(i+1 - dxl_num);
+            JointTrajectory.joint_names[i] = "link4_" + str + "_joint";
+        }
         JointTrajectory.points[0].positions[i] = jointstate->position[i];
     }
     JointTrajectory.points[0].time_from_start = ros::Duration(0.04);

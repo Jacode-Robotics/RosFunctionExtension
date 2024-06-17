@@ -13,6 +13,29 @@
     #include <cmath>
     #include <string>
 
+    // simulation class
+    class motion_simulation
+    {
+        public:
+            motion_simulation()
+            {
+                master_goal_positions_pub = nh.advertise<trajectory_msgs::JointTrajectory>("/master_motion_controller/command", 100);
+                slave_goal_positions_pub = nh.advertise<trajectory_msgs::JointTrajectory>("/slave_motion_controller/command", 100);
+                master_present_positions_sub = nh.subscribe<sensor_msgs::JointState>("/joint_states", 10, &motion_simulation::MasterPresentPositionsRead,this);
+            }
+
+        private:
+            ros::NodeHandle nh;
+            ros::Publisher master_goal_positions_pub;        // master arms motors goal position publish
+            ros::Subscriber master_present_positions_sub;    // master arms motors present position subscribe
+            ros::Publisher slave_goal_positions_pub;         // slave arms motors goal position publish
+
+            uint8_t dxl_num = 5;           //单机械臂电机关节数量
+
+            // publish slave arm motors goal position
+            void MasterPresentPositionsRead(const sensor_msgs::JointState::ConstPtr &jointstate);
+    };
+
     using namespace dynamixel;
     using namespace std;
 
@@ -32,34 +55,6 @@
     #define PROFILE_DISABLE             0x02      // Value for disable trajectory profile
     #define CURRENT_MODE                0X00      // Value for current mode
     #define DXL_MOVING_STATUS_THRESHOLD 20        // position accuracy
-
-    int BAUDRATE           =         2000000;   // Default Baudrate of DYNAMIXEL X series
-
-    int arms_number = 2;
-    int joints_number = 6;
-    
-    // simulation class
-    class motion_simulation
-    {
-        public:
-            motion_simulation()
-            {
-                master_goal_positions_pub = nh.advertise<trajectory_msgs::JointTrajectory>("/master_motion_controller/command", 100);
-                slave_goal_positions_pub = nh.advertise<trajectory_msgs::JointTrajectory>("/slave_motion_controller/command", 100);
-                master_present_positions_sub = nh.subscribe<sensor_msgs::JointState>("/joint_states", 100, &motion_simulation::MasterPresentPositionsRead,this);
-            }
-
-        private:
-            ros::NodeHandle nh;
-            ros::Publisher master_goal_positions_pub;        // master arms motors goal position publish
-            ros::Subscriber master_present_positions_sub;    // master arms motors present position subscribe
-            ros::Publisher slave_goal_positions_pub;         // slave arms motors goal position publish
-
-            // publish slave arm motors goal position
-            void MasterPresentPositionsRead(const sensor_msgs::JointState::ConstPtr &jointstate);
-    };
-
-    
 
     // physical class
     class motion_physical
@@ -82,6 +77,10 @@
             void PositionsWrite();     // 发送目标位置到stm32中
  
         private:
+            int BAUDRATE           =         2000000;   // Default Baudrate of DYNAMIXEL X series
+            int arms_number = 2;
+            int joints_number = 6;
+            
             PacketHandler *packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION);  //协议包Handler
 
             ArmDef MasterLeftDxl;         // 左边主电机结构体定义
