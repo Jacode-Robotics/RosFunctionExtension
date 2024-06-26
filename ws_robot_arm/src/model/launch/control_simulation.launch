@@ -1,0 +1,18 @@
+<launch>
+
+    <!-- 添加控制器和pid控制参数 -->
+    <rosparam command="load" file="$(find model)/config/joints.yaml" />
+
+    <include file="$(find model)/launch/gazebo.launch" />
+
+    <!-- 加载控制器 -->
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="/"
+        args="
+             /joints_state_controller
+             /master_motion_controller
+             /slave_motion_controller
+    "/>
+
+    <node name="node_follow_simulation" pkg="model" type="node_follow_simulation" output="screen" />
+
+</launch>

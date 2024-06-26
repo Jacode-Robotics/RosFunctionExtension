@@ -1,0 +1,45 @@
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <xacro:macro name="Link3_create" params="name joint_parent">
+    <!-- 连杆3 -->
+    <link name="${name}">
+      <inertial>
+        <origin xyz="-4.4371E-05 0.052245 0.010403" rpy="0 0 0" />
+        <mass value="0.037334" />
+        <inertia ixx="3.0107E-05" ixy="-8.289E-09" ixz="3.0001E-10" iyy="2.1927E-05" iyz="5.725E-06" izz="3.0817E-05" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://model/meshes/Link3.STL" />
+        </geometry>
+        <material name="">
+          <color rgba="0.4 0.4 0.4 1" />
+        </material>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://model/meshes/Link3.STL" />
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${name}_joint" type="revolute">
+      <origin xyz="0.0020288 0.17799 0.00098033" rpy="0 0 0" />
+      <parent link="${joint_parent}" />
+      <child link="${name}" />
+      <axis xyz="0 0 -1" />
+      <limit lower="${joint_lower}" upper="${joint_upper}" effort="${M5210_effort}" velocity="${M5210_velocity}" />
+      <dynamics friction="0.1"/>
+      <damping friction="0.1"  damping="0.1" />
+    </joint>
+
+    <gazebo reference="${name}">
+      <material>Gazebo/Grey</material>
+    </gazebo>
+  </xacro:macro>
+
+</robot>

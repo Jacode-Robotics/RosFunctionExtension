@@ -1,0 +1,46 @@
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+
+    <xacro:macro name="Link7_create" params="name joint_parent">
+
+        <link name="${name}">
+
+            <inertial>
+                <origin xyz="-0.00799 0.039452 -0.014945" rpy="0 0 0" />
+                <mass value="0.039237" />
+                <inertia ixx="3.966E-05" ixy="8.1331E-07" ixz="-4.2778E-11" iyy="2.4954E-05" iyz="-4.2913E-10" izz="2.0954E-05" />
+            </inertial>
+
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://model/meshes/Link7.STL" />
+                </geometry>
+                <material name="">
+                    <color rgba="0.4 0.4 0.4 1" />
+                </material>
+            </visual>
+
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://model/meshes/Link7.STL" />
+                </geometry>
+            </collision>
+
+        </link>
+
+        <joint name="${name}_joint" type="revolute">
+            <origin xyz="0.015818 -0.00047499 0.036" rpy="1.5708 0.0073902 1.5408" />
+            <parent link="${joint_parent}" />
+            <child link="${name}" />
+            <axis xyz="0 0 -1" />
+            <limit lower="-1.5" upper="0" effort="5" velocity="1" />
+        </joint>
+
+        <gazebo reference="${name}">
+            <material>Gazebo/Grey</material>
+        </gazebo>
+
+    </xacro:macro>
+
+</robot>

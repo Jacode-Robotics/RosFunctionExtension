@@ -1,0 +1,48 @@
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+
+    <!-- 创建基座连杆 -->
+    <xacro:macro name="Base_link_create" params="name pos_l pos_w">
+        <link name="${name}">     <!-- 连杆 -->
+            <!-- 可视化 -->
+            <visual>
+                <!-- 外观 -->
+                <geometry>
+                    <mesh filename="package://model/meshes/base_link.STL" />   <!-- 导入外部模型 -->
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0" />    <!-- 连杆偏移量 -->
+
+                <!-- 材质 -->
+                <material name="">
+                    <color rgba="0.4 0.4 0.4 1" />    <!-- 颜色 -->
+                </material>
+            </visual>
+
+            <!-- 碰撞矩阵 -->
+            <collision>
+                <geometry>
+                    <mesh filename="package://model/meshes/base_link.STL" />
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+            </collision>
+
+            <!-- 惯性矩阵 -->
+            <inertial>
+                <origin xyz="2.0867E-05 0.0024582 0.036484" rpy="0 0 0" />
+                <mass value="0.15198" />
+                <inertia ixx="0.00015886" ixy="-9.6174E-09" ixz="-1.3936E-07" iyy="0.00016928" iyz="-2.6347E-06" izz="0.00018505" />
+            </inertial>
+        </link>
+
+        <!-- 建立底座与位置基点的连接关节 -->
+        <joint name="${name}_joint" type="fixed"> <!-- 关节标签 -->
+            <parent link="fixed_block_link" /> <!-- 父级标签 -->
+            <child link="${name}" /> <!-- 子级标签 -->
+            <origin xyz="${pos_l} ${pos_w} ${fixed_block_high/2}" rpy="0 0 0" /> <!-- 偏移量标签 -->
+        </joint>
+
+        <gazebo reference="${name}">
+            <material>Gazebo/Grey</material>
+        </gazebo>
+    </xacro:macro>
+    
+</robot>

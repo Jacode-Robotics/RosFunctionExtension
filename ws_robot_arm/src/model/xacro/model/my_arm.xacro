@@ -1,0 +1,39 @@
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+    <!-- 包括文件 -->
+    <xacro:include filename="base_footlink.xacro" />
+    <xacro:include filename="base_link.xacro" />
+    <xacro:include filename="link1.xacro" />
+    <xacro:include filename="link2.xacro" />
+    <xacro:include filename="link3.xacro" />
+    <xacro:include filename="link4.xacro" />
+    <xacro:include filename="link5.xacro" />
+    <xacro:include filename="link6.xacro" />
+    <xacro:include filename="link7.xacro" />
+    <xacro:include filename="tran.xacro" />
+
+    <!-- 创建一台机械臂 -->
+    <xacro:macro name="Robot_arm_create" params="robot_num pos_l pos_w">
+        <xacro:Base_link_create name="base_link${robot_num}" pos_l="${pos_l}" pos_w="${pos_w}" />
+        <xacro:Link1_create name="link${robot_num}_1" joint_parent="base_link${robot_num}" />
+        <xacro:Link2_create name="link${robot_num}_2" joint_parent="link${robot_num}_1" />
+        <xacro:Link3_create name="link${robot_num}_3" joint_parent="link${robot_num}_2" />
+        <xacro:Link4_create name="link${robot_num}_4" joint_parent="link${robot_num}_3" />
+        <xacro:Link5_create name="link${robot_num}_5" joint_parent="link${robot_num}_4" />
+        <xacro:Link6_create name="link${robot_num}_6" joint_parent="link${robot_num}_5" />
+        <xacro:Link7_create name="link${robot_num}_7" joint_parent="link${robot_num}_6" />
+
+        <!-- transmission -->
+        <xacro:joint_transmission joint_name="link${robot_num}_1_joint" />
+        <xacro:joint_transmission joint_name="link${robot_num}_2_joint" />
+        <xacro:joint_transmission joint_name="link${robot_num}_3_joint" />
+        <xacro:joint_transmission joint_name="link${robot_num}_4_joint" />
+        <xacro:joint_transmission joint_name="link${robot_num}_5_joint" />
+        <xacro:joint_transmission joint_name="link${robot_num}_6_joint" />
+        <xacro:joint_transmission joint_name="link${robot_num}_7_joint" />
+    </xacro:macro>
+
+    <!-- 创建机械臂 -->
+    <xacro:Robot_arm_create robot_num="1" pos_l="-${fixed_block_length/2-0.5}" pos_w="${fixed_block_wide/2-0.5}" />
+    <xacro:Robot_arm_create robot_num="2" pos_l="-${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" />
+    
+</robot>
