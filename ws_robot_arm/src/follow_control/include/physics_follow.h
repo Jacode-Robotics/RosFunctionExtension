@@ -37,6 +37,8 @@
     #define ADDR_DRIVE_MODE             10        // Address of drive mode(set motor trajectory profile or not,position base to velocity ro base to time,Motor forward and reverse rotation)
     #define ADDR_OPERATOR_MODE          11        // Address of operator mode(current,velocity,position,Extended position Mode)
 
+    #define ADDR_MOVE_STATUS            571
+    
     #define PROTOCOL_VERSION            2.0       // Default Protocol version of DYNAMIXEL X series.
 
     #define TORQUE_ENABLE               1         // Value for enabling the torque
@@ -46,7 +48,7 @@
     #define POSITION_MODE               0X03      // Value for current mode
     #define CURRENT_MODE                0X00      // Value for current mode
     #define DXL_MOVING_STATUS_THRESHOLD 20        // position accuracy
-    #define DXL_VELOCITY_THRESHOLD      50        // position accuracy
+    #define DXL_VELOCITY_THRESHOLD      50        // velocity accuracy
 
     // physical class
     class motion_physical
@@ -72,6 +74,7 @@
 
             typedef struct
             {
+                float velocity_coefficient;
                 float Kp,Ki,Kd;          		//比例、积分、微分系数
                 int integral;          		//积分值
                 int err;
@@ -106,10 +109,10 @@
             _pid Gripper_pid;         // 夹爪位置环pid
             dynamic_reconfigure::Server<follow_control::dynamic_paramConfig> server;                  // 创建服务器对象
             dynamic_reconfigure::Server<follow_control::dynamic_paramConfig>::CallbackType cbType;    // 创建回调对象(使用回调函数，打印修改后的参数)
-            uint8_t gripper_operator_mode;
-            uint8_t gripper_last_position;
 
             inline void write_Byte_Rx(PortHandler* portHandler, uint8_t ID, uint16_t addr, int8_t data, string output);
+            void read_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint8_t* data, string output);
+            void read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint32_t* data, string output);
             inline void SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t mode, string output);
             inline ArmDef initializeArmDef(const std::string& paramName);
             inline ros::Timer initializeTimerDef();
@@ -120,8 +123,8 @@
             inline void config_slave_dxl(ArmDef& Arm);        // 配置从电机并使电机回零
             inline void config_master_dxl(ArmDef& Arm);       // 配置主电机并使电机回零
             inline void joints_state_publish(ArmDef& Arm, string robot_ref);
-            inline double Gripper_position_pid_realize(_pid *pid, int actual_val);
-            inline void SetGripperPositionWithCurrent(int target_position, int real_position, uint16_t current);
+            inline double Gripper_pid_realize(_pid *pid, int actual_val);
+            inline void SetGripperPositionWithCurrent(int target_position, int real_position, int real_velocity, uint16_t current);
             void dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level);
             void Timer_callback(const ros::TimerEvent& event);
     };

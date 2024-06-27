@@ -31,6 +31,30 @@ void motion_physical::write_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, 
         printf("[ID:%03d] %s success", ID, output.c_str());
 }
 
+void motion_physical::read_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint8_t* data, string output)
+{
+    uint8_t dxl_error = 0;
+    int dxl_comm_result = COMM_TX_FAIL;
+    dxl_comm_result = packetHandler->read1ByteTxRx(ph, ID, addr, data, &dxl_error);
+    if (dxl_comm_result == COMM_SUCCESS) {
+        ROS_INFO("[ID:%03d] %s: %d", ID, output.c_str(), *data);
+    } else {
+        ROS_INFO("[ID:%03d] Failed to %s! Result: %d", ID, output.c_str(), dxl_comm_result);
+    }
+}
+
+void motion_physical::read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint32_t* data, string output)
+{
+    uint8_t dxl_error = 0;
+    int dxl_comm_result = COMM_TX_FAIL;
+    dxl_comm_result = packetHandler->read4ByteTxRx(ph, ID, addr, data, &dxl_error);
+    if (dxl_comm_result == COMM_SUCCESS) {
+        ROS_INFO("[ID:%03d] %s: %d", ID, output.c_str(), *data);
+    } else {
+        ROS_INFO("[ID:%03d] Failed to %s! Result: %d", ID, output.c_str(), dxl_comm_result);
+    }
+}
+
 void motion_physical::SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t mode, string output)
 {
     write_Byte_Rx(ph, ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, "disable Dynamixel Torque");
@@ -189,9 +213,8 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
 // 功能：将机械臂回零功能打包
 void motion_physical::homing(ArmDef& Arm)
 {
-    vector<int32_t> zero = {0,0,0,0,0,0};
+    vector<int32_t> zero(joints_number, 0);
     uint8_t dxl_error = 0;
-    int dxl_comm_result = COMM_TX_FAIL;
     int dxl_addparam_result = false;
     uint8_t dxl_model_number = 0;
 
@@ -234,46 +257,30 @@ void motion_physical::homing(ArmDef& Arm)
         }
     }
     
-    delay_ms(50);
-
     dxl_tx(Arm, zero, "position");
-    delay_ms(10);
+
     while(1)
     {
-        dxl_txRx(Arm, "position");
-
+        uint8_t move_status = 0;
         uint8_t num = 0;
         for(size_t i=0;i<joints_number;i++)
         {
-            if(abs(Arm.present_position[i]-zero[i]) < DXL_MOVING_STATUS_THRESHOLD)
-            {
-                num++;
-            }
+            read_Byte_Rx(Arm.portHandler, Arm.DXL_ID[i], ADDR_MOVE_STATUS, &move_status, "read move status");
+            if(move_status) num++;
         }
         if(num == joints_number)
-        {
             break;
-        }
-        delay_ms(10);
     }
 }
 
 // 配置从机械臂的电机并使其回零
 void motion_physical::config_slave_dxl(ArmDef& Arm)
 {
-    uint8_t dxl_error = 0;
-    int dxl_comm_result = COMM_TX_FAIL;
-
     homing(Arm);  // Return to zero
 
-    uint8_t num = joints_number;
     if(Gripper_with_current)
-    {
-        num = joints_number - 1;
-        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[num], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
-        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[num], ADDR_DRIVE_MODE, PROFILE_DISABLE, "Disable trajectory profile");
-    }
-    for(size_t i=0; i<num; i++)
+        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[joints_number - 1], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
+    for(size_t i=0; i<joints_number; i++)
     {
         SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[i], ADDR_DRIVE_MODE, PROFILE_DISABLE, "Disable trajectory profile");
     }
@@ -282,9 +289,6 @@ void motion_physical::config_slave_dxl(ArmDef& Arm)
 // 配置主机械臂的电机并使其回零
 void motion_physical::config_master_dxl(ArmDef& Arm)
 {
-    uint8_t dxl_error = 0;
-    int dxl_comm_result = COMM_TX_FAIL;
-
     // Return to zero
     homing(Arm);
 
@@ -313,7 +317,7 @@ void motion_physical::joints_state_publish(ArmDef& Arm, string robot_ref)
 }
 
 // 进行夹爪的位置环pid计算
-double motion_physical::Gripper_position_pid_realize(_pid *pid, int actual_val)
+double motion_physical::Gripper_pid_realize(_pid *pid, int actual_val)
 {
 	/*计算目标值与实际值的误差*/
     pid->err=pid->target_value-actual_val;
@@ -342,13 +346,17 @@ double motion_physical::Gripper_position_pid_realize(_pid *pid, int actual_val)
 }
 
 // 使电机按照指定电流到达指定位置
-void motion_physical::SetGripperPositionWithCurrent(int target_position, int real_position, uint16_t current)
+void motion_physical::SetGripperPositionWithCurrent(int target_position, int real_position, int real_velocity, uint16_t current)
 {
     uint8_t dxl_error = 0;
 
-    Gripper_pid.target_value = target_position;
+    Gripper_pid.target_value = Gripper_pid.velocity_coefficient * (target_position - real_position);
     Gripper_pid.output_limit = current;
-    int target_current = Gripper_position_pid_realize(&Gripper_pid, real_position);
+    if(abs(target_position - real_position) <= DXL_MOVING_STATUS_THRESHOLD)
+    {
+        Gripper_pid.target_value = 0;
+    }
+    int target_current = Gripper_pid_realize(&Gripper_pid, real_velocity);
     
     packetHandler->write4ByteTxRx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[SlaveDxl.DXL_ID.size()-1], ADDR_GOAL_CURRENT, target_current, &dxl_error);
     if(dxl_error != 0)
@@ -365,44 +373,16 @@ void motion_physical::statusRead()
     joints_state_publish(MasterDxl, "1");
     joints_state_publish(SlaveDxl, "2");
 
-    uint8_t dxl_error = 0;
-    int dxl_comm_result = COMM_TX_FAIL;
-    dxl_comm_result = packetHandler->read4ByteTxRx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], &dxl_error);
-    if (dxl_comm_result == COMM_SUCCESS) {
-        ROS_INFO("[ID:%03d] getVelocity: %d", MasterDxl.DXL_ID[joints_number-1], MasterDxl.present_velocity[joints_number-1]);
-    } else {
-        ROS_INFO("[ID:%03d] Failed to get velocity! Result: %d", MasterDxl.DXL_ID[joints_number-1], dxl_comm_result);
-    }
-    dxl_comm_result = packetHandler->read1ByteTxRx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_OPERATOR_MODE, &gripper_operator_mode, &dxl_error);
-    if (dxl_comm_result == COMM_SUCCESS) {
-        ROS_INFO("[ID:%03d] getGripper_operator_mode: %d", MasterDxl.DXL_ID[joints_number-1], gripper_operator_mode);
-    } else {
-        ROS_INFO("[ID:%03d] Failed to get gripper_operator_mode! Result: %d", MasterDxl.DXL_ID[joints_number-1], dxl_comm_result);
-    }
+    read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
+    read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");
 }
 
 // 下发从电机当前位置到stm32中
 void motion_physical::statusWrite()
 {
-    if(MasterDxl.present_velocity[joints_number-1] > DXL_VELOCITY_THRESHOLD &&
-       gripper_operator_mode == CURRENT_MODE && 
-       abs(gripper_last_position-MasterDxl.present_position[joints_number-1])>=80)
-    {
-        Gripper_pid.integral = 0;
-        SetOperatorDriveMode(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_OPERATOR_MODE, POSITION_MODE, "set operator mode to poistion");
-    }
-    else if(MasterDxl.present_velocity[joints_number-1] < -DXL_VELOCITY_THRESHOLD &&
-            gripper_operator_mode == POSITION_MODE &&
-            abs(gripper_last_position-MasterDxl.present_position[joints_number-1])>=80)
-    {
-        SetOperatorDriveMode(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
-    }
-
-    if(gripper_operator_mode == CURRENT_MODE)
-        SetGripperPositionWithCurrent(MasterDxl.present_position[joints_number-1], SlaveDxl.present_position[joints_number-1], current_limit);
+    if(Gripper_with_current)
+        SetGripperPositionWithCurrent(MasterDxl.present_position[joints_number-1], SlaveDxl.present_position[joints_number-1], SlaveDxl.present_velocity[joints_number-1], current_limit);
     dxl_tx(SlaveDxl, MasterDxl.present_position);
-
-    gripper_last_position = MasterDxl.present_position[joints_number-1];
 }
 
 // 回调函数，准时读取和发送位置
@@ -414,6 +394,7 @@ void motion_physical::Timer_callback(const ros::TimerEvent& event)
 
 void motion_physical::dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level)
 {
+    Gripper_pid.velocity_coefficient = config.Gripper_pid_velocity_coefficient;
     Gripper_pid.Kp = config.Gripper_pid_Kp;
     Gripper_pid.Ki = config.Gripper_pid_Ki;
     Gripper_pid.Kd = config.Gripper_pid_Kd;
