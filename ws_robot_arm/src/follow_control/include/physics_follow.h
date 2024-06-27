@@ -15,6 +15,7 @@
     #include <fstream>
     #include "dynamic_reconfigure/server.h"
     #include "follow_control/dynamic_paramConfig.h"
+    #include <cstdio> 
 
     using namespace dynamixel;
     using namespace std;
@@ -49,6 +50,8 @@
     #define CURRENT_MODE                0X00      // Value for current mode
     #define DXL_MOVING_STATUS_THRESHOLD 20        // position accuracy
     #define DXL_VELOCITY_THRESHOLD      50        // velocity accuracy
+
+    #define traj_point_len              7
 
     // physical class
     class motion_physical
@@ -101,6 +104,9 @@
             int joints_number;
             bool Gripper_with_current;
             uint16_t current_limit;
+            bool Record_trajectory;
+            bool Reproduction_trajectory;
+            string traj_file_path;
 
             PacketHandler *packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION);  //协议包Handler
 
@@ -115,7 +121,7 @@
             inline void read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint32_t* data, string output);
             inline void SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t mode, string output);
             inline ArmDef initializeArmDef(const std::string& paramName);
-            inline ros::Timer initializeTimerDef();
+            inline ros::Timer initializeTimerDef(void);
             inline void dxl_tx(ArmDef& Arm, const vector<int32_t> &goal, const string str = "position");   // 发送目标位置
             inline void dxl_tx_cur(ArmDef& Arm, const vector<int16_t> &goal);
             inline void dxl_txRx(ArmDef& Arm, string str = "position");                // 读取当前值
@@ -125,6 +131,8 @@
             inline void joints_state_publish(ArmDef& Arm, string robot_ref);
             inline double Gripper_pid_realize(_pid *pid, int actual_val);
             inline void SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current);
+            inline void Follow_TrajFile(void);
+            inline void Record_traj(void);
             void dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level);
             void Timer_callback(const ros::TimerEvent& event);
     };

@@ -7,7 +7,8 @@ motion_physical::motion_physical(ros::NodeHandle& nodehandle):
     MasterDxl( initializeArmDef("MasterDxl") ),
     SlaveDxl( initializeArmDef("SlaveDxl") )
 {
-    config_master_dxl(MasterDxl);
+    if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
+    else config_master_dxl(MasterDxl);
     config_slave_dxl(SlaveDxl);
 
     cbType = boost::bind(&motion_physical::dyn_cb, this, _1, _2);
@@ -70,6 +71,8 @@ ros::Timer motion_physical::initializeTimerDef()
     ros::param::get("BAUDRATE",BAUDRATE);
     ros::param::get("control_cycle",control_cycle);
     ros::param::get("Gripper_with_current", Gripper_with_current);
+    ros::param::get("Record_trajectory", Record_trajectory);
+    ros::param::get("Reproduction_trajectory", Reproduction_trajectory);
 
     return nh.createTimer(ros::Duration(control_cycle), &motion_physical::Timer_callback, this);
 }
@@ -81,6 +84,7 @@ motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& par
     string str = "";
     ros::param::get(paramName + "/DXL_ID", ID);
     ros::param::get(paramName + "/DEVICE_NAME", str);
+    ros::param::get("traj_file_path", traj_file_path);
     vector<int> zero(joints_number,0);
     _pid pid;
     
@@ -366,6 +370,41 @@ void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, int target_posi
         printf("[ID:%03d] target_current:%d\n", Arm.DXL_ID[joints_number-1], target_current);
 }
 
+void motion_physical::Record_traj()
+{
+    static bool is_first = true;
+
+    if(is_first)
+    {
+        for(size_t i=0;i<joints_number;i++)
+        {
+            string str = to_string(i+1);
+            string filename = traj_file_path + "/joint" + str + "_pos.traj"; // 要删除的文件路径
+            ifstream file(filename);
+            
+            if(file.good())
+            {
+                int result = std::remove(filename.c_str());
+                if (result != 0) {
+                    perror("Error deleting file"); // 输出错误信息，如果删除失败
+                } else {
+                    printf("File successfully deleted\n");
+                }
+            }
+        }
+        is_first = false;
+    }
+    for(size_t i=0;i<joints_number;i++)
+    {
+        string str = to_string(i+1);
+        ofstream outFile(traj_file_path + "/joint" + str + "_pos.traj", ios::app);
+        if (outFile.is_open()) {
+            outFile << setw(traj_point_len) << setfill(' ') << MasterDxl.present_position[i] << endl;
+            outFile.close();       // 关闭文件流
+        }
+    }
+}
+
 // 读取电机状态
 void motion_physical::statusRead()
 {
@@ -376,11 +415,56 @@ void motion_physical::statusRead()
 
     read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
     read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");
+
+    if(Record_trajectory)
+    {
+        Record_traj();
+    }
+}
+
+void motion_physical::Follow_TrajFile()
+{
+    static vector<int32_t> file_cursor(joints_number, 0);
+    vector<int> target_position(joints_number, 0);
+    static vector<bool> is_first(joints_number, true);
+    static vector<streampos> file_size(joints_number, 0);
+
+    for(size_t i=0;i<joints_number;i++)
+    {
+        string str = to_string(i+1);
+        string filename = (traj_file_path + "/joint" + str + "_pos.traj");
+        ifstream inFile(filename); // 打开文件流
+
+        if(is_first[i])
+        {
+            inFile.seekg(0, ios::end); // 将文件指针移到文件末尾
+            file_size[i] = inFile.tellg(); // 获取当前文件指针位置，即文件大小
+
+            is_first[i] = false;
+        }
+
+        inFile.seekg(abs(file_cursor[i]), ios::beg);
+        string value;
+        inFile >> value; // 从文件中读取数据到变量
+        target_position[i] = stoi(value);
+        inFile.close(); // 关闭文件流
+
+        file_cursor[i] += traj_point_len+1;
+        if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
+    }
+    if(Gripper_with_current)
+        SetGripperPositionWithCurrent(MasterDxl, target_position[joints_number-1], current_limit);
+    dxl_tx(MasterDxl, target_position);
 }
 
 // 下发从电机当前位置到stm32中
 void motion_physical::statusWrite()
 {
+    if(Reproduction_trajectory)
+    {
+        Follow_TrajFile();
+    }
+
     if(Gripper_with_current)
         SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
     dxl_tx(SlaveDxl, MasterDxl.present_position);

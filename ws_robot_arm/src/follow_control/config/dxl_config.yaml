@@ -6,6 +6,10 @@ arms_number: 2              #机械臂数量（包括主和从）
 
 Gripper_with_current: true
 
+Record_trajectory: false
+Reproduction_trajectory: true
+traj_file_path: /home/hzw/RosFunctionExtension/ws_robot_arm/src/follow_control/traj
+
 MasterDxl:                  #主机械臂1
   DXL_ID: [1,2,3,4,5,6,7]             #电机ID
   DEVICE_NAME: /dev/ttyUSB0       #串口号（支持每台机械臂使用相同或不同串口号）
