@@ -1,4 +1,0 @@
-在src/model/xacro/model/my_arm.xacro中更改连杆和关节名称，更改创建的机械臂、连杆、关节的数量
-在src/model/config/dxl_config.yaml中更改串口名称，波特率，和电机ID
-在src/model/config/joints.yaml中更改ros_control控制器的参数
-其他文件所有文件不建议改动

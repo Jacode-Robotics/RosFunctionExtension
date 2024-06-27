@@ -1,8 +1,0 @@
-<launch>
-    <rosparam command="load" file="$(find model)/config/dxl_config.yaml" />
-
-    <include file="$(find model)/launch/rviz.launch" />
-
-    <node name="node_follow_physical" pkg="model" type="node_follow_physical" output="screen" />
-
-</launch>
