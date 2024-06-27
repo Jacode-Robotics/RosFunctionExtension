@@ -82,10 +82,11 @@ motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& par
     ros::param::get(paramName + "/DXL_ID", ID);
     ros::param::get(paramName + "/DEVICE_NAME", str);
     vector<int> zero(joints_number,0);
+    _pid pid;
     
     ArmDef arm =
     {
-        str.c_str(), ID, zero, zero, zero,
+        str.c_str(), ID, zero, zero, zero, pid,
         PortHandler::getPortHandler(arm.DEVICE_NAME),
         GroupSyncWrite(arm.portHandler, packetHandler, ADDR_GOAL_POSITION, LEN_POSITION),
         GroupSyncRead(arm.portHandler, packetHandler, ADDR_PRESENT_POSITION, LEN_POSITION),
@@ -346,23 +347,23 @@ double motion_physical::Gripper_pid_realize(_pid *pid, int actual_val)
 }
 
 // 使电机按照指定电流到达指定位置
-void motion_physical::SetGripperPositionWithCurrent(int target_position, int real_position, int real_velocity, uint16_t current)
+void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current)
 {
     uint8_t dxl_error = 0;
 
-    Gripper_pid.target_value = Gripper_pid.velocity_coefficient * (target_position - real_position);
-    Gripper_pid.output_limit = current;
-    if(abs(target_position - real_position) <= DXL_MOVING_STATUS_THRESHOLD)
+    Arm.Gripper_pid.target_value = Arm.Gripper_pid.velocity_coefficient * (target_position - Arm.present_position[joints_number-1]);
+    Arm.Gripper_pid.output_limit = current;
+    if(abs(target_position - Arm.present_position[joints_number-1]) <= DXL_MOVING_STATUS_THRESHOLD)
     {
-        Gripper_pid.target_value = 0;
+        Arm.Gripper_pid.target_value = 0;
     }
-    int target_current = Gripper_pid_realize(&Gripper_pid, real_velocity);
+    int target_current = Gripper_pid_realize(&Arm.Gripper_pid, Arm.present_velocity[joints_number-1]);
     
-    packetHandler->write4ByteTxRx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[SlaveDxl.DXL_ID.size()-1], ADDR_GOAL_CURRENT, target_current, &dxl_error);
+    packetHandler->write4ByteTxRx(Arm.portHandler, Arm.DXL_ID[joints_number-1], ADDR_GOAL_CURRENT, target_current, &dxl_error);
     if(dxl_error != 0)
         printf("%s", packetHandler->getRxPacketError(dxl_error));
     else
-        printf("[ID:%03d] target_current:%d\n", SlaveDxl.DXL_ID[SlaveDxl.DXL_ID.size()-1], target_current);
+        printf("[ID:%03d] target_current:%d\n", Arm.DXL_ID[joints_number-1], target_current);
 }
 
 // 读取电机状态
@@ -381,7 +382,7 @@ void motion_physical::statusRead()
 void motion_physical::statusWrite()
 {
     if(Gripper_with_current)
-        SetGripperPositionWithCurrent(MasterDxl.present_position[joints_number-1], SlaveDxl.present_position[joints_number-1], SlaveDxl.present_velocity[joints_number-1], current_limit);
+        SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
     dxl_tx(SlaveDxl, MasterDxl.present_position);
 }
 
@@ -394,9 +395,13 @@ void motion_physical::Timer_callback(const ros::TimerEvent& event)
 
 void motion_physical::dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level)
 {
-    Gripper_pid.velocity_coefficient = config.Gripper_pid_velocity_coefficient;
-    Gripper_pid.Kp = config.Gripper_pid_Kp;
-    Gripper_pid.Ki = config.Gripper_pid_Ki;
-    Gripper_pid.Kd = config.Gripper_pid_Kd;
+    MasterDxl.Gripper_pid.velocity_coefficient = config.Gripper_pid_velocity_coefficient;
+    MasterDxl.Gripper_pid.Kp = config.Gripper_pid_Kp;
+    MasterDxl.Gripper_pid.Ki = config.Gripper_pid_Ki;
+    MasterDxl.Gripper_pid.Kd = config.Gripper_pid_Kd;
+    SlaveDxl.Gripper_pid.velocity_coefficient = config.Gripper_pid_velocity_coefficient;
+    SlaveDxl.Gripper_pid.Kp = config.Gripper_pid_Kp;
+    SlaveDxl.Gripper_pid.Ki = config.Gripper_pid_Ki;
+    SlaveDxl.Gripper_pid.Kd = config.Gripper_pid_Kd;
     current_limit  = config.current_limit;
 }
