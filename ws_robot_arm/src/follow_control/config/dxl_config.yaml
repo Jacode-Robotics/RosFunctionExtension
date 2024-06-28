@@ -1,19 +1,19 @@
-BAUDRATE: 2000000           #串口波特率
-control_cycle: 0.002        #电机控制周期
+BAUDRATE: 2000000                 # Serial baud rate
+control_cycle: 0.002              # Motor control cycle
 
-joints_number: 7            #单台机械臂的关节数量（目前支持10个即两组机械臂）
-arms_number: 2              #机械臂数量（包括主和从）
+joints_number: 7                  # Number of joints for a single robotic arm (currently supporting 10 or two sets of robotic arms)
+arms_number: 2                    # Number of robotic arms (including master and slave)
 
-Gripper_with_current: true
+Gripper_with_current: true        # gripper use current mode or not
 
-Record_trajectory: false
-Reproduction_trajectory: true
-traj_file_path: /home/hzw/RosFunctionExtension/ws_robot_arm/src/follow_control/traj
+Record_trajectory: false           # Record trajectory or not
+Reproduction_trajectory: false     # Reproduction trajectory
+traj_file_path: /home/hzw/RosFunctionExtension/ws_robot_arm/src/follow_control/traj  # Track file path
 
-MasterDxl:                  #主机械臂1
-  DXL_ID: [1,2,3,4,5,6,7]             #电机ID
-  DEVICE_NAME: /dev/ttyUSB0       #串口号（支持每台机械臂使用相同或不同串口号）
+MasterDxl:            # master arm
+  DXL_ID: [1,2,3,4,5,6,7]         # motor ID
+  DEVICE_NAME: /dev/ttyUSB0       # Serial port number (supports using the same or different serial port numbers for each robotic arm)
 
-SlaveDxl:                   #从机械臂1
+SlaveDxl:             # slave arm
   DXL_ID: [1,2,3,4,5,6,7]
   DEVICE_NAME: /dev/ttyUSB1

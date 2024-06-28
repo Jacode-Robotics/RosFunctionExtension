@@ -1,7 +1,7 @@
 <launch>
     <rosparam command="load" file="$(find follow_control)/config/dxl_config.yaml" />
 
-    <!-- <include file="$(find model)/launch/rviz.launch" /> -->
+    <include file="$(find model)/launch/rviz.launch" />
 
     <node name="node_physics_follow" pkg="follow_control" type="node_physics_follow" output="screen" />
 

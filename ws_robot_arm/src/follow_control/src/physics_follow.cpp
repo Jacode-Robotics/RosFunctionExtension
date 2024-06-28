@@ -1,25 +1,26 @@
 #include "../include/physics_follow.h"
 
-// 有参构造
 motion_physical::motion_physical(ros::NodeHandle& nodehandle):
     nh(nodehandle),
     timer( initializeTimerDef() ),
     MasterDxl( initializeArmDef("MasterDxl") ),
     SlaveDxl( initializeArmDef("SlaveDxl") )
 {
+    // If it is necessary to reproduce the trajectory, initialize the main motor according to the slave motor mode
     if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
     else config_master_dxl(MasterDxl);
     config_slave_dxl(SlaveDxl);
 
     cbType = boost::bind(&motion_physical::dyn_cb, this, _1, _2);
-    server.setCallback(cbType);     // 服务器对象调用回调对象
+    server.setCallback(cbType);
 }
 
-// 休眠n毫秒
+// delay ms
 void delay_ms(int milliseconds) {
     std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 }
 
+// Write a byte to the protocol table
 void motion_physical::write_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t data, string output)
 {
     uint8_t dxl_error = 0;
@@ -29,9 +30,10 @@ void motion_physical::write_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, 
     if(dxl_error != 0)
         printf("%s", packetHandler->getRxPacketError(dxl_error));
     else
-        printf("[ID:%03d] %s success", ID, output.c_str());
+        printf("[ID:%03d] %s success\n", ID, output.c_str());
 }
 
+// read a byte from the protocol table
 void motion_physical::read_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint8_t* data, string output)
 {
     uint8_t dxl_error = 0;
@@ -44,6 +46,7 @@ void motion_physical::read_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, u
     }
 }
 
+// read 4 byte from the protocol table
 void motion_physical::read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint32_t* data, string output)
 {
     uint8_t dxl_error = 0;
@@ -56,6 +59,9 @@ void motion_physical::read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, 
     }
 }
 
+// Set motor operation or drive mode
+// addr: ADDR_OPERATOR_MODE or ADDR_DRIVE_MODE
+// mode: Reference Protocol Table
 void motion_physical::SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t mode, string output)
 {
     write_Byte_Rx(ph, ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, "disable Dynamixel Torque");
@@ -63,8 +69,8 @@ void motion_physical::SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t
     write_Byte_Rx(ph, ID, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, "Enable Dynamixel Torque");
 }
 
-//初始化定时器
-ros::Timer motion_physical::initializeTimerDef()
+// Initialize the timer and load parameters
+ros::Timer motion_physical::initializeTimerDef(void)
 {
     ros::param::get("/joints_number", joints_number);
     ros::param::get("arms_number", arms_number);
@@ -77,9 +83,10 @@ ros::Timer motion_physical::initializeTimerDef()
     return nh.createTimer(ros::Duration(control_cycle), &motion_physical::Timer_callback, this);
 }
 
-//初始化ArmDef类型结构体
+// Initialize ArmDef type structure
 motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& paramName)
 {
+    // load parameters
     vector<int> ID;
     string str = "";
     ros::param::get(paramName + "/DXL_ID", ID);
@@ -103,18 +110,21 @@ motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& par
     return arm;
 }
 
-// 功能：将组写电机位置功能打包
-// str: "position" "velocity" 默认为"position"
+// Function: Package the position or speed function of the group writing motor
+// goal:     target position or target velocity
+// str:      "position" "velocity",Default to"position"
 void motion_physical::dxl_tx(ArmDef& Arm, const vector<int32_t> &goal, const string str)
 {
     uint8_t param_goal[4];
     int dxl_comm_result = COMM_TX_FAIL;
     int dxl_addparam_result = false;
 
+    // Default to"position"
     GroupSyncWrite* groupSyncWrite = &Arm.groupSyncWritePosition;
     if(str == "velocity")
         GroupSyncWrite* groupSyncWrite = &Arm.groupSyncWriteVelocity;
 
+    // Add data to the group write buffer
     for(size_t i=0; i<joints_number; i++)
     {
         param_goal[0] = DXL_LOBYTE(DXL_LOWORD(goal[i]));
@@ -128,23 +138,27 @@ void motion_physical::dxl_tx(ArmDef& Arm, const vector<int32_t> &goal, const str
         }
     }
 
+    // Group write message sending
     dxl_comm_result = groupSyncWrite->txPacket();
     if (dxl_comm_result == COMM_SUCCESS){
-        // ROS_INFO("set%s success", str.c_str());
+        ROS_INFO("set%s success", str.c_str());
     } else {
         ROS_ERROR("Failed to set %s! Result: %d", str.c_str(), dxl_comm_result);
     }
 
+    // Clear group write buffer
     groupSyncWrite->clearParam();
 }
 
-// 功能：将组写电流功能打包
+// Function: Package the group write current function
+// goal:     target current
 void motion_physical::dxl_tx_cur(ArmDef& Arm, const vector<int16_t> &goal)
 {
     uint8_t param_goal[2];
     int dxl_comm_result = COMM_TX_FAIL;
     int dxl_addparam_result = false;
 
+    // Add data to the group write buffer
     for(size_t i=0; i<joints_number; i++)
     {
         param_goal[0] = DXL_LOBYTE(goal[i]);
@@ -156,6 +170,7 @@ void motion_physical::dxl_tx_cur(ArmDef& Arm, const vector<int16_t> &goal)
         }
     }
 
+    // Group write message sending
     dxl_comm_result = Arm.groupSyncWriteCurrent.txPacket();
     if (dxl_comm_result == COMM_SUCCESS){
         ROS_INFO("setCurrent success");
@@ -163,11 +178,11 @@ void motion_physical::dxl_tx_cur(ArmDef& Arm, const vector<int16_t> &goal)
         ROS_ERROR("Failed to set Current! Result: %d", dxl_comm_result);
     }
 
+    // Clear group write buffer
     Arm.groupSyncWriteCurrent.clearParam();
 }
 
-// 接收当前位置
-// 功能：将组读当前位置功能打包
+// Function: Package read present status function
 // str: "position" "velocity" "current" 默认为"position"
 void motion_physical::dxl_txRx(ArmDef& Arm, string str)
 {
@@ -175,6 +190,7 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
     int dxl_comm_result = COMM_TX_FAIL;
     int32_t value = 0;
 
+    // Default to"position"
     GroupSyncRead* groupSyncRead = &Arm.groupSyncReadPosition;
     vector<int>* present_value = &Arm.present_position;
     uint16_t addr = ADDR_PRESENT_POSITION;
@@ -194,6 +210,7 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
         len_addr = LEN_CURRENT;
     }
 
+    // Group read message sending
     dxl_comm_result = groupSyncRead->txRxPacket();
     if (dxl_comm_result != COMM_SUCCESS)
     {
@@ -205,17 +222,17 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
         present_value->clear();
         for(size_t i=0;i<Arm.DXL_ID.size();i++)
         {
+            // Get data from read buffer 
             value = groupSyncRead->getData(Arm.DXL_ID[i], addr, len_addr);
             if (str == "current" && value > INT16_MAX)
                 value = static_cast<int16_t>(value);
             present_value->push_back(value);
-            // ROS_INFO("[ID:%03d] get%s : [%s:%d]", Arm.DXL_ID[i], str.c_str(), str.c_str(), (*present_value)[i]);
+            ROS_INFO("[ID:%03d] get%s : [%s:%d]", Arm.DXL_ID[i], str.c_str(), str.c_str(), (*present_value)[i]);
         }
     }
 }
 
-// 机械臂回到初始位置
-// 功能：将机械臂回零功能打包
+// Return the robotic arm to its initial position
 void motion_physical::homing(ArmDef& Arm)
 {
     vector<int32_t> zero(joints_number, 0);
@@ -262,8 +279,10 @@ void motion_physical::homing(ArmDef& Arm)
         }
     }
     
+    // The robotic arm returns to the zero position
     dxl_tx(Arm, zero, "position");
 
+    // Determine whether the robotic arm has reached the target position
     while(1)
     {
         uint8_t move_status = 0;
@@ -278,11 +297,13 @@ void motion_physical::homing(ArmDef& Arm)
     }
 }
 
-// 配置从机械臂的电机并使其回零
+// Configure the motor of the slave robotic arm and return it to zero position
 void motion_physical::config_slave_dxl(ArmDef& Arm)
 {
-    homing(Arm);  // Return to zero
+    // Return to zero position
+    homing(Arm);
 
+    // Set motor working mode and operating mode
     if(Gripper_with_current)
         SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[joints_number - 1], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
     for(size_t i=0; i<joints_number; i++)
@@ -291,12 +312,13 @@ void motion_physical::config_slave_dxl(ArmDef& Arm)
     }
 }
 
-// 配置主机械臂的电机并使其回零
+// Configure the motor of the master robotic arm and return it to zero position
 void motion_physical::config_master_dxl(ArmDef& Arm)
 {
-    // Return to zero
+    // Return to zero position
     homing(Arm);
 
+    // Set motor working mode and operating mode
     for(size_t i=0; i<joints_number; i++)
     {
         SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[i], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
@@ -304,7 +326,8 @@ void motion_physical::config_master_dxl(ArmDef& Arm)
     }
 }
 
-// 关节状态发布
+// Joints status publish
+// robot_ref: Robot arm serial number
 void motion_physical::joints_state_publish(ArmDef& Arm, string robot_ref)
 {
     sensor_msgs::JointState JointState;
@@ -321,67 +344,83 @@ void motion_physical::joints_state_publish(ArmDef& Arm, string robot_ref)
     joints_state_pub.publish(JointState);
 }
 
-// 进行夹爪的位置环pid计算
+// Perform speed loop PID calculation for gripper
+// pid: The corresponding PID structure of the robotic arm
+// actual_val: actual value
 double motion_physical::Gripper_pid_realize(_pid *pid, int actual_val)
 {
-	/*计算目标值与实际值的误差*/
+	/* Calculate the error between the target value and the actual value */
     pid->err=pid->target_value-actual_val;
 
-    if(abs(pid->err) <= DXL_MOVING_STATUS_THRESHOLD) pid->err = 0;
+    /* Speed error */
+    if(abs(pid->err) <= DXL_MOVING_STATUS_THRESHOLD)
+        pid->err = 0;
 
-    pid->integral += pid->err;    // 误差累积
-		
+    /* integral */
+    pid->integral += pid->err;
+	
+    /* Integral limiting amplitude */
     pid->integral = (pid->integral > 50000) ? 50000 : ((pid->integral < -50000) ? -50000 : pid->integral);
 
-	/*PID算法实现*/
+	/* Implementation of PID algorithm */
     pid->output_value = pid->Kp * pid->err + pid->Ki * pid->integral + pid->Kd * (pid->err - pid->last_err);
     
+    /* Eliminating dead zones */
     if(pid->output_value>=0) pid->output_value += 35;
     else pid->output_value -= 35;
 
-    /* 输出限幅 */
+    /* Output limiting */
     pid->output_value = (pid->output_value > pid->output_limit) ? pid->output_limit :\
     (pid->output_value < -pid->output_limit) ? -pid->output_limit : pid->output_value;
   
-	/*误差传递*/
+	/* Error transmission */
     pid->last_err = pid->err;
-    
-	/*返回当前实际值*/
+
     return pid->output_value;
 }
 
-// 使电机按照指定电流到达指定位置
+// Make the motor reach the specified position according to the specified current
 void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current)
 {
     uint8_t dxl_error = 0;
 
+    // Convert positional deviation to target speed
     Arm.Gripper_pid.target_value = Arm.Gripper_pid.velocity_coefficient * (target_position - Arm.present_position[joints_number-1]);
+    
     Arm.Gripper_pid.output_limit = current;
+
+    // position error
     if(abs(target_position - Arm.present_position[joints_number-1]) <= DXL_MOVING_STATUS_THRESHOLD)
     {
         Arm.Gripper_pid.target_value = 0;
     }
+    // Calculate current
     int target_current = Gripper_pid_realize(&Arm.Gripper_pid, Arm.present_velocity[joints_number-1]);
     
+    // target Current send
     packetHandler->write4ByteTxRx(Arm.portHandler, Arm.DXL_ID[joints_number-1], ADDR_GOAL_CURRENT, target_current, &dxl_error);
     if(dxl_error != 0)
         printf("%s", packetHandler->getRxPacketError(dxl_error));
-    else
-        printf("[ID:%03d] target_current:%d\n", Arm.DXL_ID[joints_number-1], target_current);
+    // else
+        // printf("[ID:%03d] target_current:%d\n", Arm.DXL_ID[joints_number-1], target_current);
 }
 
-void motion_physical::Record_traj()
+// Record the trajectory of the robotic arm
+void motion_physical::Record_traj(void)
 {
     static bool is_first = true;
 
     if(is_first)
     {
+        // Delete corresponding trajectory file
         for(size_t i=0;i<joints_number;i++)
         {
+            // Register file stream
             string str = to_string(i+1);
-            string filename = traj_file_path + "/joint" + str + "_pos.traj"; // 要删除的文件路径
+            string filename = traj_file_path + "/joint" + str + "_pos.traj";
             ifstream file(filename);
             
+            // Determine if the file exists and delete it
             if(file.good())
             {
                 int result = std::remove(filename.c_str());
@@ -394,6 +433,7 @@ void motion_physical::Record_traj()
         }
         is_first = false;
     }
+    // Record trajectory
     for(size_t i=0;i<joints_number;i++)
     {
         string str = to_string(i+1);
@@ -405,8 +445,8 @@ void motion_physical::Record_traj()
     }
 }
 
-// 读取电机状态
-void motion_physical::statusRead()
+// Read motor status
+void motion_physical::statusRead(void)
 {
     dxl_txRx(MasterDxl, "position");
     dxl_txRx(SlaveDxl, "position");
@@ -422,7 +462,8 @@ void motion_physical::statusRead()
     }
 }
 
-void motion_physical::Follow_TrajFile()
+// Reproduce the trajectory recorded last time
+void motion_physical::Follow_TrajFile(void)
 {
     static vector<int32_t> file_cursor(joints_number, 0);
     vector<int> target_position(joints_number, 0);
@@ -431,52 +472,61 @@ void motion_physical::Follow_TrajFile()
 
     for(size_t i=0;i<joints_number;i++)
     {
+        // Open file stream
         string str = to_string(i+1);
         string filename = (traj_file_path + "/joint" + str + "_pos.traj");
-        ifstream inFile(filename); // 打开文件流
+        ifstream inFile(filename);
 
+        // Get file size
         if(is_first[i])
         {
-            inFile.seekg(0, ios::end); // 将文件指针移到文件末尾
-            file_size[i] = inFile.tellg(); // 获取当前文件指针位置，即文件大小
+            inFile.seekg(0, ios::end);
+            file_size[i] = inFile.tellg();
 
             is_first[i] = false;
         }
 
+        // Reading data from a file
         inFile.seekg(abs(file_cursor[i]), ios::beg);
         string value;
-        inFile >> value; // 从文件中读取数据到变量
+        inFile >> value;
         target_position[i] = stoi(value);
-        inFile.close(); // 关闭文件流
+        inFile.close();
 
+        // Set cursor position
         file_cursor[i] += traj_point_len+1;
         if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
     }
+
+    // Drive master robotic arm
     if(Gripper_with_current)
         SetGripperPositionWithCurrent(MasterDxl, target_position[joints_number-1], current_limit);
     dxl_tx(MasterDxl, target_position);
 }
 
-// 下发从电机当前位置到stm32中
-void motion_physical::statusWrite()
+// Send motor control target
+void motion_physical::statusWrite(void)
 {
+    // Reading trajectories
     if(Reproduction_trajectory)
     {
         Follow_TrajFile();
     }
 
+    // Drive master robotic arm
     if(Gripper_with_current)
         SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
     dxl_tx(SlaveDxl, MasterDxl.present_position);
 }
 
-// 回调函数，准时读取和发送位置
+// Callback function, timely reading and sending status
 void motion_physical::Timer_callback(const ros::TimerEvent& event)
 {
     statusRead();
     statusWrite();
 }
 
+// Dynamic parameter callback
 void motion_physical::dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level)
 {
     MasterDxl.Gripper_pid.velocity_coefficient = config.Gripper_pid_velocity_coefficient;

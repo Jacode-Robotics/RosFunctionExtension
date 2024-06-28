@@ -6,7 +6,6 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "motion_follow_physical");
     ros::NodeHandle nh;
 
-    // 实例化控制类
     motion_physical motion_physical(nh);
 
     ros::spin();
