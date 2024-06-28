@@ -1,19 +1,20 @@
-BAUDRATE: 2000000                 # Serial baud rate
-control_cycle: 0.002              # Motor control cycle
+arm_pair1:           # Should be consistent with args in controll_simulation. launch
+  BAUDRATE: 2000000                 # Serial baud rate
+  control_cycle: 0.002              # Motor control cycle
 
-joints_number: 7                  # Number of joints for a single robotic arm (currently supporting 10 or two sets of robotic arms)
-arms_number: 2                    # Number of robotic arms (including master and slave)
+  joints_number: 7                  # Number of joints for a single robotic arm (currently supporting 10 or two sets of robotic arms)
+  arm_number: ["1","2"]             # Number of the robotic arm(Should be the same as in my-arm.xacro)
 
-Gripper_with_current: true        # gripper use current mode or not
+  Gripper_with_current: true        # gripper use current mode or not
 
-Record_trajectory: false           # Record trajectory or not
-Reproduction_trajectory: false     # Reproduction trajectory
-traj_file_path: /home/hzw/RosFunctionExtension/ws_robot_arm/src/follow_control/traj  # Track file path
+  Record_trajectory: false           # Record trajectory or not
+  Reproduction_trajectory: false     # Reproduction trajectory
+  traj_file_path: /home/hzw/RosFunctionExtension/ws_robot_arm/src/follow_control/traj  # Track file path
 
-MasterDxl:            # master arm
-  DXL_ID: [1,2,3,4,5,6,7]         # motor ID
-  DEVICE_NAME: /dev/ttyUSB0       # Serial port number (supports using the same or different serial port numbers for each robotic arm)
+  MasterDxl:            # master arm
+    DXL_ID: [1,2,3,4,5,6,7]         # motor ID
+    DEVICE_NAME: /dev/ttyUSB0       # Serial port number (supports using the same or different serial port numbers for each robotic arm)
 
-SlaveDxl:             # slave arm
-  DXL_ID: [1,2,3,4,5,6,7]
-  DEVICE_NAME: /dev/ttyUSB1
+  SlaveDxl:             # slave arm
+    DXL_ID: [1,2,3,4,5,6,7]
+    DEVICE_NAME: /dev/ttyUSB1

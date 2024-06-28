@@ -6,7 +6,13 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "motion_follow_physical");
     ros::NodeHandle nh;
 
-    motion_physical motion_physical(nh);
+    if (argc <= 1)
+    {
+        cout<< "请输入机械臂对的名称" << endl;
+        return 0;
+    }
+
+    motion_physical motion_physical(nh, argv[1]);
 
     ros::spin();
 

@@ -1,10 +1,10 @@
 #include "../include/physics_follow.h"
 
-motion_physical::motion_physical(ros::NodeHandle& nodehandle):
+motion_physical::motion_physical(ros::NodeHandle& nodehandle, string ArmPairName):
     nh(nodehandle),
-    timer( initializeTimerDef() ),
-    MasterDxl( initializeArmDef("MasterDxl") ),
-    SlaveDxl( initializeArmDef("SlaveDxl") )
+    timer( initializeTimerDef(ArmPairName) ),
+    MasterDxl( initializeArmDef("MasterDxl", ArmPairName) ),
+    SlaveDxl( initializeArmDef("SlaveDxl", ArmPairName) )
 {
     // If it is necessary to reproduce the trajectory, initialize the main motor according to the slave motor mode
     if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
@@ -70,28 +70,28 @@ void motion_physical::SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t
 }
 
 // Initialize the timer and load parameters
-ros::Timer motion_physical::initializeTimerDef(void)
+ros::Timer motion_physical::initializeTimerDef(string ArmPairName)
 {
-    ros::param::get("/joints_number", joints_number);
-    ros::param::get("arms_number", arms_number);
-    ros::param::get("BAUDRATE",BAUDRATE);
-    ros::param::get("control_cycle",control_cycle);
-    ros::param::get("Gripper_with_current", Gripper_with_current);
-    ros::param::get("Record_trajectory", Record_trajectory);
-    ros::param::get("Reproduction_trajectory", Reproduction_trajectory);
+    ros::param::get(ArmPairName + "/joints_number", joints_number);
+    ros::param::get(ArmPairName + "/BAUDRATE",BAUDRATE);
+    ros::param::get(ArmPairName + "/control_cycle",control_cycle);
+    ros::param::get(ArmPairName + "/Gripper_with_current", Gripper_with_current);
+    ros::param::get(ArmPairName + "/Record_trajectory", Record_trajectory);
+    ros::param::get(ArmPairName + "/Reproduction_trajectory", Reproduction_trajectory);
 
     return nh.createTimer(ros::Duration(control_cycle), &motion_physical::Timer_callback, this);
 }
 
 // Initialize ArmDef type structure
-motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& paramName)
+motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& paramName, string ArmPairName)
 {
     // load parameters
     vector<int> ID;
     string str = "";
-    ros::param::get(paramName + "/DXL_ID", ID);
-    ros::param::get(paramName + "/DEVICE_NAME", str);
-    ros::param::get("traj_file_path", traj_file_path);
+    ros::param::get(ArmPairName + "/" + paramName + "/DXL_ID", ID);
+    ros::param::get(ArmPairName + "/" + paramName + "/DEVICE_NAME", str);
+    ros::param::get(ArmPairName + "/traj_file_path", traj_file_path);
+    ros::param::get(ArmPairName + "/arm_number", arm_number);
     vector<int> zero(joints_number,0);
     _pid pid;
     
@@ -450,8 +450,8 @@ void motion_physical::statusRead(void)
 {
     dxl_txRx(MasterDxl, "position");
     dxl_txRx(SlaveDxl, "position");
-    joints_state_publish(MasterDxl, "1");
-    joints_state_publish(SlaveDxl, "2");
+    joints_state_publish(MasterDxl, arm_number[0]);
+    joints_state_publish(SlaveDxl, arm_number[1]);
 
     read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
     read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");

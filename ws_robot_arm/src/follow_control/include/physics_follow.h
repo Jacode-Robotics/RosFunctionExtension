@@ -88,7 +88,7 @@
                 
             }ArmDef;
 
-            motion_physical(ros::NodeHandle& nodehandle);
+            motion_physical(ros::NodeHandle& nodehandle, string ArmPairName);
 
             void statusRead();      // Read motor status
             void statusWrite();     // Send target location to stm32
@@ -101,13 +101,13 @@
             // Retrieve from parameter server
             int BAUDRATE;                 // BAUDRATE
             float control_cycle;          // control cycle
-            int arms_number;              // arms number
             int joints_number;            // joints number
             bool Gripper_with_current;    // gripper use current mode or not
             uint16_t current_limit;       // current limit
             bool Record_trajectory;       // Record trajectory or not
             bool Reproduction_trajectory; // Reproduction trajectory or not
             string traj_file_path;        // trajectory file path
+            vector<string> arm_number;
 
             //Protocol package Handler
             PacketHandler *packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION);
@@ -123,8 +123,8 @@
             inline void read_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint8_t* data, string output);
             inline void read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint32_t* data, string output);
             inline void SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t mode, string output);
-            inline ArmDef initializeArmDef(const std::string& paramName);
-            inline ros::Timer initializeTimerDef(void);
+            inline ArmDef initializeArmDef(const std::string& paramName, string ArmPairName);
+            inline ros::Timer initializeTimerDef(string ArmPairName);
             inline void dxl_tx(ArmDef& Arm, const vector<int32_t> &goal, const string str = "position");
             inline void dxl_tx_cur(ArmDef& Arm, const vector<int16_t> &goal);
             inline void dxl_txRx(ArmDef& Arm, string str = "position");
