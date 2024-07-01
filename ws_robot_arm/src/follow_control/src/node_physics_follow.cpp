@@ -8,10 +8,11 @@ int main(int argc, char *argv[])
 
     if (argc <= 1)
     {
-        cout<< "请输入机械臂对的名称" << endl;
+        cout<< "Please enter the name of this pair of robotic arms" << endl;
         return 0;
     }
 
+    // Argv [1] is the name of the robotic arm
     motion_physical motion_physical(nh, argv[1]);
 
     ros::spin();

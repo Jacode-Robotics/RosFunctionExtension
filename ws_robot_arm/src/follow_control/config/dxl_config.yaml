@@ -1,9 +1,9 @@
-arm_pair1:           # Should be consistent with args in controll_simulation. launch
+arm_pair1:           # Should be consistent with args in control_physical.launch
   BAUDRATE: 2000000                 # Serial baud rate
   control_cycle: 0.002              # Motor control cycle
 
   joints_number: 7                  # Number of joints for a single robotic arm (currently supporting 10 or two sets of robotic arms)
-  arm_number: ["1","2"]             # Number of the robotic arm(Should be the same as in my-arm.xacro)
+  arm_number: ["1","2"]             # Number of the robotic arm(Should be the same as in my_arm.xacro)
 
   Gripper_with_current: true        # gripper use current mode or not
 
