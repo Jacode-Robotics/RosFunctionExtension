@@ -425,7 +425,7 @@ void motion_physical::Record_traj(void)
             {
                 int result = std::remove(filename.c_str());
                 if (result != 0) {
-                    perror("Error deleting file"); // 输出错误信息，如果删除失败
+                    perror("Error deleting file"); // Output error message, if deletion fails
                 } else {
                     printf("File successfully deleted\n");
                 }
@@ -440,7 +440,7 @@ void motion_physical::Record_traj(void)
         ofstream outFile(traj_file_path + "/joint" + str + "_pos.traj", ios::app);
         if (outFile.is_open()) {
             outFile << setw(traj_point_len) << setfill(' ') << MasterDxl.present_position[i] << endl;
-            outFile.close();       // 关闭文件流
+            outFile.close();       // Close file stream
         }
     }
 }
