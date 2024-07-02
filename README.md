@@ -1,17 +1,13 @@
-# RosFunctionExtension
-This repository contains ROS function related codes
-
 Start the robotic arm process:
-1. Download this workspace from GitHub to your Ubuntu 20.04 system and run catkin_make to compile this workspace in the ws_robot.arm directory. Generally, an error message stating that the feature package cannot be found will appear here. You need to download the relevant feature package dependencies yourself
-
+1. Download this workspace from GitHub to your Ubuntu 20.04 system and run catkin_make to compile this workspace in the ws_robot_arm directory. If there is an error where the feature pack cannot be found, you need to download the relevant feature pack dependencies yourself
 ```
 git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
 cd RosFunctionExtension/ws_robot_arm/
 catkin_make
 ```
-2. View the dxl_config.yaml file in the followself_control feature package and modify the relevant parameters according to the comments
-3. Run the control physical launch file,If you want to run it directly in one step, modify the path to the setup.bash file in the run.sh file and then run run.sh directly
 
+2. View the dxl_config.yaml file in the follow_control package and modify the relevant parameters according to the comments
+3. Run the control physical.launch file. If you want to run it directly in one step, modify the setup.bash file path in the run.sh file and run run.sh directly
 ```
 source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
@@ -19,24 +15,292 @@ roslaunch follow_control control_physical.launch
 or ./src/run.sh
 ```
 
+Content introduction:
+1. Model (Model Feature Pack)
+The linkx.xacro directory in the xacro directory contains functions for establishing various linkages and joints, which are summarized by the my_arm.xacro file. This includes the naming of joints and linkages, the number of robotic arms, etc. If simulating, the controller related configurations are defined in the joints.yaml file. Please note that the model names and quantities my_arm.xacro, simulation_follow.cpp, and joints.yaml files need to be consistent
 
-Simulation:
-1. The model function package stores the model files and simulation functions of the robotic arm, and the controll_physical.launch is the final launch file for the simulation function
-2. The configuration related to the model is defined in the my_arm.xacro file, which includes the naming of joints and linkages, the number of robotic arms, etc. The configuration related to the controller is defined in the joints.yaml file. If the parameters such as the model name and number change, the simulation_follow.cpp and joints.yaml files also need to be modified synchronously
+link1.xacro
+```
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+
+    <xacro:macro name="Link1_create" params="name joint_parent">
+        <link name="${name}">
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://model/meshes/Link1.STL" />
+                </geometry>
+                <material name="">
+                    <color rgba="0.4 0.4 0.4 1" />
+                </material>
+            </visual>
+
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://model/meshes/Link1.STL" />
+                </geometry>
+            </collision>
+
+            <inertial>
+                <origin xyz="-0.000150569497344115 0.0104209638029447 0.0714669079248176" rpy="0 0 0" />
+                <mass value="0.051454447593722" />
+                <inertia ixx="4.28042027375435E-05" ixy="2.49335097665302E-08" ixz="9.07504091461259E-08" iyy="5.10332068673238E-05" iyz="-7.62078054651406E-06" izz="2.92976443195118E-05" />
+            </inertial>
+        </link>
+
+        <joint name="${name}_joint" type="revolute">
+            <origin xyz="0 0 0.10219" rpy="0 0 0" />
+            <parent link="${joint_parent}" />
+            <child link="${name}" />
+            <axis xyz="0 0 1" />
+            <limit lower="${joint_lower}" upper="${joint_upper}" effort="${M5210_effort}" velocity="${M5210_velocity}" />
+            <dynamics friction="0.1"/>
+            <damping friction="0.1" damping="0.1" />
+        </joint>
+
+        <gazebo reference="${name}">
+            <material>Gazebo/Grey</material>
+        </gazebo>
+    </xacro:macro>
+
+</robot>
+```
+
+my_arm.xacro
+```
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+    <xacro:include filename="base_footlink.xacro" />
+    <xacro:include filename="base_link.xacro" />
+    <xacro:include filename="link1.xacro" />
+    <xacro:include filename="link2.xacro" />
+    <xacro:include filename="link3.xacro" />
+    <xacro:include filename="link4.xacro" />
+    <xacro:include filename="link5.xacro" />
+    <xacro:include filename="link6.xacro" />
+    <xacro:include filename="link7.xacro" />
+    <xacro:include filename="tran.xacro" />
+
+    <!-- Create a robotic arm -->
+    <xacro:macro name="Robot_arm_create" params="arm_number pos_l pos_w">
+        <xacro:Base_link_create name="base_link${arm_number}" pos_l="${pos_l}" pos_w="${pos_w}" />
+        <xacro:Link1_create name="link${arm_number}_1" joint_parent="base_link${arm_number}" />
+        <xacro:Link2_create name="link${arm_number}_2" joint_parent="link${arm_number}_1" />
+        <xacro:Link3_create name="link${arm_number}_3" joint_parent="link${arm_number}_2" />
+        <xacro:Link4_create name="link${arm_number}_4" joint_parent="link${arm_number}_3" />
+        <xacro:Link5_create name="link${arm_number}_5" joint_parent="link${arm_number}_4" />
+        <xacro:Link6_create name="link${arm_number}_6" joint_parent="link${arm_number}_5" />
+        <xacro:Link7_create name="link${arm_number}_7" joint_parent="link${arm_number}_6" />
+
+        <!-- transmission -->
+        <xacro:joint_transmission joint_name="link${arm_number}_1_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_2_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_3_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_4_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_5_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_6_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_7_joint" />
+    </xacro:macro>
+
+    <xacro:Robot_arm_create arm_number="1" pos_l="-${fixed_block_length/2-0.5}" pos_w="${fixed_block_wide/2-0.5}" />
+    <xacro:Robot_arm_create arm_number="2" pos_l="-${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" />
+    
+</robot>
+```
+
+joints.yaml
+```
+joints_state_controller:
+  type: "joint_state_controller/JointStateController"
+  publish_rate: 100
+
+master_motion_controller:
+  type: "effort_controllers/JointTrajectoryController"
+  joints:
+    - link1_1_joint
+    - link1_2_joint
+    - link1_3_joint
+    - link1_4_joint
+    - link1_5_joint
+    - link1_6_joint
+    - link1_7_joint
+
+    - link3_1_joint
+    - link3_2_joint
+    - link3_3_joint
+    - link3_4_joint
+    - link3_5_joint
+    - link3_6_joint
+    - link3_7_joint
+
+  gains:
+    link1_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link1_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link1_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link1_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link1_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link1_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link1_7_joint: {p: 45.0, i: 0.2, d: 0}
+
+    link3_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link3_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link3_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link3_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link3_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link3_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link3_7_joint: {p: 45.0, i: 0.2, d: 0}
 
 
-Prototype:
-1. follow_control is the following control function package of the prototype, and controll_simulation.aunch is the final launch file for starting the robotic arm
-2. The model file and the launch file of rviz are stored in the model feature package. Similarly, if there are modifications to the joint or link name or quantity in my_arm.xacro, it is necessary to synchronously modify the content of the joints_state_publish function in the physics_follow.cpp file
-3. The dynamic_param.cfg file contains settings for all dynamic parameters. To facilitate debugging, you can open rqt and make changes to it. After obtaining the final result, fill the value into the dynamic_param.cfg file
-4. This feature pack supports controlling any number of robotic arms at the same time. If you want multiple pairs of robotic arms to work simultaneously, add a few more node_physics_follow.cpp nodes in controll_simulation.launch, and set the node and args parameters to different values (this value represents the name of the pair of robotic arms). Copy the configuration content in dxl_config.yaml a few more times. It should be noted that the arm_pairx in dxl_config.yaml needs to be consistent with the args in controll_simulation.launch. If multiple robotic arms are connected to the same device, Each bus needs to be set to a different ID. If it needs to be displayed in rviz, the number of robotic arms needs to be added to the my_arm.xacro file in the model function package. The number of robotic arms in my_arm.xacro should be the same as in dxl_config.yaml, which is the number of robotic arms.
+slave_motion_controller:
+  type: "effort_controllers/JointTrajectoryController"
+  joints:
+    - link2_1_joint
+    - link2_2_joint
+    - link2_3_joint
+    - link2_4_joint
+    - link2_5_joint
+    - link2_6_joint
+    - link2_7_joint
+
+    - link4_1_joint
+    - link4_2_joint
+    - link4_3_joint
+    - link4_4_joint
+    - link4_5_joint
+    - link4_6_joint
+    - link4_7_joint
+
+  gains:
+    link2_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link2_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link2_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link2_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link2_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link2_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link2_7_joint: {p: 45.0, i: 0.2, d: 0}
+
+    link4_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link4_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link4_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link4_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link4_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link4_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link4_7_joint: {p: 45.0, i: 0.2, d: 0}
+```
+Control_simulation.launch is the final file of the simulation, and the simulation function can be run by running it
+
+control_simulation.launch
+```
+<launch>
+
+    <!-- Add controller and PID control parameters -->
+    <rosparam command="load" file="$(find model)/config/joints.yaml" />
+
+    <include file="$(find model)/launch/gazebo.launch" />
+
+    <!-- Load Controller -->
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="/"
+        args="
+             /joints_state_controller
+             /master_motion_controller
+             /slave_motion_controller
+    "/>
+
+    <node name="node_follow_simulation" pkg="model" type="node_follow_simulation" output="screen" />
+
+</launch>
+```
+The follow_control is the package that controls the real prototype, and the controll_physical.launch is the final control file. To execute the follow function, it is sufficient to run it
+
+control_physical.launch
+```
+<launch>
+    <rosparam command="load" file="$(find follow_control)/config/dxl_config.yaml" />
+
+    <include file="$(find model)/launch/rviz.launch" />
+
+    <node name="node_arm_pair1" pkg="follow_control" type="node_physics_follow" args="arm_pair1" output="screen" />
+
+</launch>
+```
+
+It includes the model loading `<include file="$(find model)/launch/rviz.launch"/>` and the nodes that control machine motion `<node name="node_Arm_pair1" pkg="follow_control" type="node_physics_follow" args="arm_pair1" output="screen"/>`, where args is the name of the pair of robotic arms, and when controlling multiple pairs of robotic arms, it should be ensured that each pair of robotic arms has a different name. Dxl_config.yaml and dynamic_param.cfg are files that record control parameters, where dxl_config.yaml is static and dynamic_param.cfg is dynamic. Dynamic parameters can be changed directly through rqt during program execution. The names args and arm_pairx mentioned earlier are both names of a pair of robotic arms and should be consistent. The armnumber parameter is the number of the robotic arm and should be consistent with the armnumber of my_arm.xacro.
+
+Physics_follow.cpp contains the main content of this feature pack, and the control cycle of the robotic arm is controlled by a timer`timer( initializeTimerDef(ArmPairName) )`
+
+Here, after the robotic arm returns to zero, the main arm is set to current mode with a current of 0. The six joints of the robotic arm are in position mode, and the gripper is in current mode. The gripper current is converted from the position difference between the two robotic arms to the target speed and controlled by the speed loop PID. The function is`void SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current)`
+```
+if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
+    else config_master_dxl(MasterDxl);
+    config_slave_dxl(SlaveDxl);
+```
+
+During the reading and writing process, it is possible to record and reproduce the previous trajectory.
+```
+// Read motor status
+void motion_physical::statusRead(void)
+{
+    dxl_txRx(MasterDxl, "position");
+    dxl_txRx(SlaveDxl, "position");
+    joints_state_publish(MasterDxl, arm_number[0]);
+    joints_state_publish(SlaveDxl, arm_number[1]);
+
+    read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
+    read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");
+
+    if(Record_trajectory)
+    {
+        Record_traj();
+    }
+}
+```
+```
+// Send motor control target
+void motion_physical::statusWrite(void)
+{
+    // Reading trajectories
+    if(Reproduction_trajectory)
+    {
+        Follow_TrajFile();
+    }
+
+    // Drive master robotic arm
+    if(Gripper_with_current)
+        SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
+    dxl_tx(SlaveDxl, MasterDxl.present_position);
+}
+```
+Please note that when displaying the robotic arm in rviz, it is necessary to keep the joint name of the robotic arm consistent with the my_arm.xacro file in the model function package
+```
+// Joints status publish
+// robot_ref: Robot arm serial number
+void motion_physical::joints_state_publish(ArmDef& Arm, string robot_ref)
+{
+    sensor_msgs::JointState JointState;
+
+    JointState.header.stamp = ros::Time::now();
+    
+    for(size_t i=0; i<joints_number; i++)
+    {
+        string str = to_string(i+1);
+        JointState.name.push_back("link" + robot_ref + "_" + str + "_joint");
+
+        JointState.position.push_back(Arm.present_position[i]/pow(2,15) * M_PI * 2);
+    }
+    joints_state_pub.publish(JointState);
+}
+```
+
+This feature pack supports multiple groups of robotic arms to work together. You can add several more node_physics_follow.cpp nodes in controll_simulation.launch, and copy the configuration content in dxl_config.yaml a few more times
+
+
+
 
 
 
 
 启动机械臂流程：
 1.在github中下载本工作空间到你的ubuntu 20.04系统并在ws_robot_arm目录下运行catkin_make编译本工作空间，如果有找不到功能包的错误，需要自己下载相关的功能包依赖
-
 ```
 git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
 cd RosFunctionExtension/ws_robot_arm/
@@ -44,7 +308,6 @@ catkin_make
 ```
 2.查看follow_control功能包内的dxl_config.yaml文件并按照注释修改相关参数
 3.运行control_physical.launch文件,如果想一步直接运行则修改run.sh文件内setup.bash文件路径再直接运行run.sh即可
-
 ```
 source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
@@ -52,14 +315,282 @@ roslaunch follow_control control_physical.launch
 or ./src/run.sh
 ```
 
+内容介绍：
+1. 模型（model功能包）
+xacro目录下linkx.xacro包含建立各连杆和关节的函数，并由my_arm.xacro文件汇总,其中包括关节和连杆的命名，机械臂的数量等,如果仿真，控制器相关的配置在joints.yaml文件中定义，注意模型名称和数量my_arm.xacro、simulation_follow.cpp和joints.yaml文件需要保持一致
 
-仿真：
-1.model功能包存储了机械臂的模型文件和仿真功能，control_physical.launch为仿真功能的最终launch文件
-2.其中模型相关的配置在my_arm.xacro文件中定义，其中包括关节和连杆的命名，机械臂的数量等，控制器相关的配置在joints.yaml文件中定义，如果模型名称和数量等参数发生改变则simulation_follow.cpp和joints.yaml文件也需要同步修改
+link1.xacro
+```
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+
+    <xacro:macro name="Link1_create" params="name joint_parent">
+        <link name="${name}">
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://model/meshes/Link1.STL" />
+                </geometry>
+                <material name="">
+                    <color rgba="0.4 0.4 0.4 1" />
+                </material>
+            </visual>
+
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <mesh filename="package://model/meshes/Link1.STL" />
+                </geometry>
+            </collision>
+
+            <inertial>
+                <origin xyz="-0.000150569497344115 0.0104209638029447 0.0714669079248176" rpy="0 0 0" />
+                <mass value="0.051454447593722" />
+                <inertia ixx="4.28042027375435E-05" ixy="2.49335097665302E-08" ixz="9.07504091461259E-08" iyy="5.10332068673238E-05" iyz="-7.62078054651406E-06" izz="2.92976443195118E-05" />
+            </inertial>
+        </link>
+
+        <joint name="${name}_joint" type="revolute">
+            <origin xyz="0 0 0.10219" rpy="0 0 0" />
+            <parent link="${joint_parent}" />
+            <child link="${name}" />
+            <axis xyz="0 0 1" />
+            <limit lower="${joint_lower}" upper="${joint_upper}" effort="${M5210_effort}" velocity="${M5210_velocity}" />
+            <dynamics friction="0.1"/>
+            <damping friction="0.1" damping="0.1" />
+        </joint>
+
+        <gazebo reference="${name}">
+            <material>Gazebo/Grey</material>
+        </gazebo>
+    </xacro:macro>
+
+</robot>
+```
+
+my_arm.xacro
+```
+<robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
+    <xacro:include filename="base_footlink.xacro" />
+    <xacro:include filename="base_link.xacro" />
+    <xacro:include filename="link1.xacro" />
+    <xacro:include filename="link2.xacro" />
+    <xacro:include filename="link3.xacro" />
+    <xacro:include filename="link4.xacro" />
+    <xacro:include filename="link5.xacro" />
+    <xacro:include filename="link6.xacro" />
+    <xacro:include filename="link7.xacro" />
+    <xacro:include filename="tran.xacro" />
+
+    <!-- Create a robotic arm -->
+    <xacro:macro name="Robot_arm_create" params="arm_number pos_l pos_w">
+        <xacro:Base_link_create name="base_link${arm_number}" pos_l="${pos_l}" pos_w="${pos_w}" />
+        <xacro:Link1_create name="link${arm_number}_1" joint_parent="base_link${arm_number}" />
+        <xacro:Link2_create name="link${arm_number}_2" joint_parent="link${arm_number}_1" />
+        <xacro:Link3_create name="link${arm_number}_3" joint_parent="link${arm_number}_2" />
+        <xacro:Link4_create name="link${arm_number}_4" joint_parent="link${arm_number}_3" />
+        <xacro:Link5_create name="link${arm_number}_5" joint_parent="link${arm_number}_4" />
+        <xacro:Link6_create name="link${arm_number}_6" joint_parent="link${arm_number}_5" />
+        <xacro:Link7_create name="link${arm_number}_7" joint_parent="link${arm_number}_6" />
+
+        <!-- transmission -->
+        <xacro:joint_transmission joint_name="link${arm_number}_1_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_2_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_3_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_4_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_5_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_6_joint" />
+        <xacro:joint_transmission joint_name="link${arm_number}_7_joint" />
+    </xacro:macro>
+
+    <xacro:Robot_arm_create arm_number="1" pos_l="-${fixed_block_length/2-0.5}" pos_w="${fixed_block_wide/2-0.5}" />
+    <xacro:Robot_arm_create arm_number="2" pos_l="-${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" />
+    
+</robot>
+```
+
+joints.yaml
+```
+joints_state_controller:
+  type: "joint_state_controller/JointStateController"
+  publish_rate: 100
+
+master_motion_controller:
+  type: "effort_controllers/JointTrajectoryController"
+  joints:
+    - link1_1_joint
+    - link1_2_joint
+    - link1_3_joint
+    - link1_4_joint
+    - link1_5_joint
+    - link1_6_joint
+    - link1_7_joint
+
+    - link3_1_joint
+    - link3_2_joint
+    - link3_3_joint
+    - link3_4_joint
+    - link3_5_joint
+    - link3_6_joint
+    - link3_7_joint
+
+  gains:
+    link1_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link1_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link1_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link1_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link1_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link1_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link1_7_joint: {p: 45.0, i: 0.2, d: 0}
+
+    link3_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link3_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link3_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link3_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link3_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link3_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link3_7_joint: {p: 45.0, i: 0.2, d: 0}
 
 
-样机：
-1.follow_control为样机的跟随控制功能包，control_simulation.launch为启动机械臂的最终launch文件
-2.模型文件和rviz的launch文件存储在model功能包中，同理，如果在my_arm.xacro中对关节或连杆名称或数量有修改，则需要同步修改physics_follow.cpp文件中joints_state_publish函数内的内容
-3.dynamic_param.cfg文件中包含所有动态参数的设置，为方便调试可以打开rqt并在里面进行更改调试，得到最终结果后将值填入dynamic_param.cfg文件中
-4.本功能包支持同时控制任意数量的机械臂，如果希望多对机械臂同时工作则在control_simulation.launch中多添加几个node_physics_follow.cpp节点，并将其中的node和args参数设置为不同的值（这个值代表了该对机械臂的名称），并将dxl_config.yaml中的配置内容多复制几份即可，需要注意的是dxl_config.yaml中的arm_pairx需要与control_simulation.launch中的args保持一致，如果多条机械臂接在同一个总线则需要设置为不同的ID，如果需要再rviz中显示则需要再model功能包的my_arm.xacro文件中增加机械臂的数量,其中my_arm.xacro与dxl_config.yaml中的“arm_number”应该相同，这是机械臂的编号
+slave_motion_controller:
+  type: "effort_controllers/JointTrajectoryController"
+  joints:
+    - link2_1_joint
+    - link2_2_joint
+    - link2_3_joint
+    - link2_4_joint
+    - link2_5_joint
+    - link2_6_joint
+    - link2_7_joint
+
+    - link4_1_joint
+    - link4_2_joint
+    - link4_3_joint
+    - link4_4_joint
+    - link4_5_joint
+    - link4_6_joint
+    - link4_7_joint
+
+  gains:
+    link2_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link2_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link2_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link2_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link2_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link2_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link2_7_joint: {p: 45.0, i: 0.2, d: 0}
+
+    link4_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link4_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link4_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link4_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link4_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link4_6_joint: {p: 45.0, i: 0.2, d: 0}
+    link4_7_joint: {p: 45.0, i: 0.2, d: 0}
+```
+
+control_simulation.launch为仿真的最终文件，仿真功能运行它即可
+
+control_simulation.launch
+```
+<launch>
+
+    <!-- Add controller and PID control parameters -->
+    <rosparam command="load" file="$(find model)/config/joints.yaml" />
+
+    <include file="$(find model)/launch/gazebo.launch" />
+
+    <!-- Load Controller -->
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="/"
+        args="
+             /joints_state_controller
+             /master_motion_controller
+             /slave_motion_controller
+    "/>
+
+    <node name="node_follow_simulation" pkg="model" type="node_follow_simulation" output="screen" />
+
+</launch>
+```
+
+follow_control功能包为控制真实样机的功能包，control_physical.launch为最终的控制文件，要执行跟随功能运行它即可
+
+control_physical.launch
+```
+<launch>
+    <rosparam command="load" file="$(find follow_control)/config/dxl_config.yaml" />
+
+    <include file="$(find model)/launch/rviz.launch" />
+
+    <node name="node_arm_pair1" pkg="follow_control" type="node_physics_follow" args="arm_pair1" output="screen" />
+
+</launch>
+```
+其中包含了模型加载`<include file="$(find model)/launch/rviz.launch" />`和控制机器运动的节点`<node name="node_arm_pair1" pkg="follow_control" type="node_physics_follow" args="arm_pair1" output="screen" />`，args为本对机械臂的名称，在控制多对机械臂时应该保证每对机械臂的名称都不同。dxl_config.yaml和dynamic_param.cfg为记录控制参数的文件，其中dxl_config.yaml为静态，dynamic_param.cfg为动态，动态参数可以在程序运行时直接通过rqt进行更改。其中前面提到的args与arm_pairx都是一对机械臂的名称，应该保持一致。arm_number参数为机械臂的编号，应该与my_arm.xacro的arm_number保持一致。
+
+physics_follow.cpp包含了本功能包的主要内容，机械臂的控制周期由定时器控制`timer( initializeTimerDef(ArmPairName) )`
+
+此处在机械臂回到零点后将主机械臂设置为电流模式，电流为0，从机械臂的主臂六个关节为位置模式，夹爪为电流模式，夹爪电流由两个机械臂夹爪位置差转化为目标速度并由速度环pid控制，函数为`void SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current)`
+```
+if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
+    else config_master_dxl(MasterDxl);
+    config_slave_dxl(SlaveDxl);
+```
+
+在读写过程中将可以记录和复现上一轮轨迹
+```
+// Read motor status
+void motion_physical::statusRead(void)
+{
+    dxl_txRx(MasterDxl, "position");
+    dxl_txRx(SlaveDxl, "position");
+    joints_state_publish(MasterDxl, arm_number[0]);
+    joints_state_publish(SlaveDxl, arm_number[1]);
+
+    read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
+    read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");
+
+    if(Record_trajectory)
+    {
+        Record_traj();
+    }
+}
+```
+```
+// Send motor control target
+void motion_physical::statusWrite(void)
+{
+    // Reading trajectories
+    if(Reproduction_trajectory)
+    {
+        Follow_TrajFile();
+    }
+
+    // Drive master robotic arm
+    if(Gripper_with_current)
+        SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
+    dxl_tx(SlaveDxl, MasterDxl.present_position);
+}
+```
+
+需要注意：机械臂在rviz中显示需要保持机械臂关节名称与model功能包中my_arm.xacro文件保持一致
+```
+// Joints status publish
+// robot_ref: Robot arm serial number
+void motion_physical::joints_state_publish(ArmDef& Arm, string robot_ref)
+{
+    sensor_msgs::JointState JointState;
+
+    JointState.header.stamp = ros::Time::now();
+    
+    for(size_t i=0; i<joints_number; i++)
+    {
+        string str = to_string(i+1);
+        JointState.name.push_back("link" + robot_ref + "_" + str + "_joint");
+
+        JointState.position.push_back(Arm.present_position[i]/pow(2,15) * M_PI * 2);
+    }
+    joints_state_pub.publish(JointState);
+}
+```
+
+本功能包支持多组机械臂共同工作，您可以在control_simulation.launch中多添加几个node_physics_follow.cpp节点，并将dxl_config.yaml中的配置内容多复制几份即可
