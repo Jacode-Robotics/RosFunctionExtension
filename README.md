@@ -14,6 +14,19 @@ roslaunch follow_control control_physical.launch
 
 or ./src/run.sh
 ```
+You can refer to this video: [STR400 Sync Robot Tutorial - YouTube](https://www.youtube.com/watch?v=LY0OBegv0w4)
+
+If you want the robotic arm to move quickly, you need to set the speed limit value of the motor higher before running this program. If the robotic arm experiences shaking, you need to check the shaking motor and reset the motor's PID:
+```
+git clone git@github.com:Jacode-Robotics/JA-Actuator_SDK.git
+cd ./JA-Actuator_SDK/python/tests/protocol2_0/
+sudo python3 change_velocity_limit.py
+or sudo python3 change_pid.py
+```
+Reference video: [Change motor PID parameters Tutorial - YouTube](https://www.youtube.com/watch?v=kErCQJ4n3Wo)
+
+
+
 
 Content introduction:
 1. Model (Model Feature Pack)
@@ -314,6 +327,17 @@ roslaunch follow_control control_physical.launch
 
 or ./src/run.sh
 ```
+可以参考这个视频： [STR400 Sync Robot Tutorial - YouTube](https://www.youtube.com/watch?v=LY0OBegv0w4)
+
+如果你想使机械臂快速运动，你需要在运行本程序之前将电机的速度限制的值设置大一些,如果机械臂出现抖动的情况则需要查看抖动的电机并重新设置电机的pid：
+```
+git clone git@github.com:Jacode-Robotics/JA-Actuator_SDK.git
+cd ./JA-Actuator_SDK/python/tests/protocol2_0/
+sudo python3 change_velocity_limit.py
+or sudo python3 change_pid.py
+```
+参考视频：[更改电机pid参数](https://www.youtube.com/watch?v=kErCQJ4n3Wo)
+
 
 内容介绍：
 1. 模型（model功能包）
