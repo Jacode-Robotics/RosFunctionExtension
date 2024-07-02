@@ -5,8 +5,7 @@
     #include "sensor_msgs/JointState.h"
     #include "trajectory_msgs/JointTrajectory.h"
 
-    #define dxl_num         7           //单机械臂电机关节数量
-
+    #define dxl_num         7           // Number of motor joints for a single robotic arm
     // simulation class
     class motion_simulation
     {

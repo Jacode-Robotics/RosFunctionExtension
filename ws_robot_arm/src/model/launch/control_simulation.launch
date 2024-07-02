@@ -1,11 +1,11 @@
 <launch>
 
-    <!-- 添加控制器和pid控制参数 -->
+    <!-- Add controller and PID control parameters -->
     <rosparam command="load" file="$(find model)/config/joints.yaml" />
 
     <include file="$(find model)/launch/gazebo.launch" />
 
-    <!-- 加载控制器 -->
+    <!-- Load Controller -->
     <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="/"
         args="
              /joints_state_controller
