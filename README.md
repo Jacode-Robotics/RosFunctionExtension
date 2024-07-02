@@ -14,8 +14,8 @@ catkin_make```
 ```source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
 
-or ./src/run.sh```
-
+or ./src/run.sh
+```
 
 
 Simulation:
@@ -37,16 +37,16 @@ Prototype:
 
 ```git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
 cd RosFunctionExtension/ws_robot_arm/
-catkin_make```
-
+catkin_make
+```
 2.查看follow_control功能包内的dxl_config.yaml文件并按照注释修改相关参数
 3.运行control_physical.launch文件,如果想一步直接运行则修改run.sh文件内setup.bash文件路径再直接运行run.sh即可
 
 ```source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
 
-or ./src/run.sh```
-
+or ./src/run.sh
+```
 
 
 仿真：
