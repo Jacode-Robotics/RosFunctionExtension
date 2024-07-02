@@ -14,7 +14,7 @@ catkin_make
 source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
 
-or ./run.sh
+or ./src/run.sh
 
 
 
@@ -45,7 +45,7 @@ catkin_make
 source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
 
-or ./run.sh
+or ./src/run.sh
 
 
 
