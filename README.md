@@ -4,14 +4,16 @@ This repository contains ROS function related codes
 Start the robotic arm process:
 1. Download this workspace from GitHub to your Ubuntu 20.04 system and run catkin_make to compile this workspace in the ws_robot.arm directory. Generally, an error message stating that the feature package cannot be found will appear here. You need to download the relevant feature package dependencies yourself
 
-```git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
+```
+git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
 cd RosFunctionExtension/ws_robot_arm/
 catkin_make
 ```
 2. View the dxl_config.yaml file in the followself_control feature package and modify the relevant parameters according to the comments
 3. Run the control physical launch file,If you want to run it directly in one step, modify the path to the setup.bash file in the run.sh file and then run run.sh directly
 
-```source ./devel/setup.bash
+```
+source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
 
 or ./src/run.sh
@@ -35,14 +37,16 @@ Prototype:
 启动机械臂流程：
 1.在github中下载本工作空间到你的ubuntu 20.04系统并在ws_robot_arm目录下运行catkin_make编译本工作空间，如果有找不到功能包的错误，需要自己下载相关的功能包依赖
 
-```git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
+```
+git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
 cd RosFunctionExtension/ws_robot_arm/
 catkin_make
 ```
 2.查看follow_control功能包内的dxl_config.yaml文件并按照注释修改相关参数
 3.运行control_physical.launch文件,如果想一步直接运行则修改run.sh文件内setup.bash文件路径再直接运行run.sh即可
 
-```source ./devel/setup.bash
+```
+source ./devel/setup.bash
 roslaunch follow_control control_physical.launch
 
 or ./src/run.sh
