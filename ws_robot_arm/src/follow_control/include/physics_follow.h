@@ -59,7 +59,7 @@
         public:
             typedef struct
             {
-                float velocity_coefficient;    // The ratio of speed to position
+                float vel_ratio;    // The ratio of speed to position
                 float Kp,Ki,Kd;          	   // Proportional, integral, and differential coefficients
                 int integral;          		   // Integral value
                 int err;                       // Difference
@@ -76,7 +76,7 @@
                 vector<int32_t> present_position;   // Current position of motor
                 vector<int32_t> present_velocity;   // Current speed of motor
                 vector<int32_t> present_current;    // Current of motor
-                _pid Gripper_pid;                   // Gripper speed loop PID
+                vector<_pid> Gripper_pid;                   // Gripper speed loop PID
 
                 PortHandler *portHandler;                // Serial port Handler
                 GroupSyncWrite groupSyncWritePosition;   // Group Write Target Location Handler
@@ -103,7 +103,7 @@
             float control_cycle;          // control cycle
             int joints_number;            // joints number
             bool Gripper_with_current;    // gripper use current mode or not
-            uint16_t current_limit;       // current limit
+            vector<uint16_t> current_limit;       // current limit
             bool Record_trajectory;       // Record trajectory or not
             bool Reproduction_trajectory; // Reproduction trajectory or not
             string traj_file_path;        // trajectory file path
@@ -129,11 +129,10 @@
             inline void dxl_tx_cur(ArmDef& Arm, const vector<int16_t> &goal);
             inline void dxl_txRx(ArmDef& Arm, string str = "position");
             inline void homing(ArmDef& Arm);
-            inline void config_slave_dxl(ArmDef& Arm);
-            inline void config_master_dxl(ArmDef& Arm);
+            inline void config_dxl(ArmDef& Arm);
             inline void joints_state_publish(ArmDef& Arm, string robot_ref);
             inline double Gripper_pid_realize(_pid *pid, int actual_val);
-            inline void SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current);
+            inline void SetGripperPositionWithCurrent(ArmDef& Arm, uint8_t joint_num, int target_position, uint16_t current);
             inline void Follow_TrajFile(void);
             inline void Record_traj(void);
             void dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level);
