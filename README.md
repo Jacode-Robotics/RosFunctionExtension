@@ -6,8 +6,8 @@ Start the robotic arm process:
 
 ```git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
 cd RosFunctionExtension/ws_robot_arm/
-catkin_make```
-
+catkin_make
+```
 2. View the dxl_config.yaml file in the followself_control feature package and modify the relevant parameters according to the comments
 3. Run the control physical launch file,If you want to run it directly in one step, modify the path to the setup.bash file in the run.sh file and then run run.sh directly
 
