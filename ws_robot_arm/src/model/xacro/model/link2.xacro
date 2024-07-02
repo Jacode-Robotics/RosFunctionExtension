@@ -1,7 +1,6 @@
 <robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
 
   <xacro:macro name="Link2_create" params="name joint_parent">
-    <!-- 连杆2 -->
     <link name="${name}">
       <visual>
         <geometry>

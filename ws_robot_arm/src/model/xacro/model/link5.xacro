@@ -1,7 +1,6 @@
 <robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
 
   <xacro:macro name="Link5_create" params="name joint_parent">
-      <!-- 连杆5 -->
     <link name="${name}">
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />

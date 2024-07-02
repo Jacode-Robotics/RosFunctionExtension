@@ -1,7 +1,6 @@
 <robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
 
   <xacro:macro name="Link3_create" params="name joint_parent">
-    <!-- 连杆3 -->
     <link name="${name}">
       <inertial>
         <origin xyz="-4.4371E-05 0.052245 0.010403" rpy="0 0 0" />

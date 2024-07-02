@@ -1,5 +1,4 @@
 <robot name="arm_dyn" xmlns:xacro="http://wiki.ros.org/xacro">
-    <!-- 包括文件 -->
     <xacro:include filename="base_footlink.xacro" />
     <xacro:include filename="base_link.xacro" />
     <xacro:include filename="link1.xacro" />
@@ -11,7 +10,7 @@
     <xacro:include filename="link7.xacro" />
     <xacro:include filename="tran.xacro" />
 
-    <!-- 创建一台机械臂 -->
+    <!-- Create a robotic arm -->
     <xacro:macro name="Robot_arm_create" params="arm_number pos_l pos_w">
         <xacro:Base_link_create name="base_link${arm_number}" pos_l="${pos_l}" pos_w="${pos_w}" />
         <xacro:Link1_create name="link${arm_number}_1" joint_parent="base_link${arm_number}" />
@@ -32,7 +31,6 @@
         <xacro:joint_transmission joint_name="link${arm_number}_7_joint" />
     </xacro:macro>
 
-    <!-- 创建机械臂 -->
     <xacro:Robot_arm_create arm_number="1" pos_l="-${fixed_block_length/2-0.5}" pos_w="${fixed_block_wide/2-0.5}" />
     <xacro:Robot_arm_create arm_number="2" pos_l="-${fixed_block_length/2-0.5}" pos_w="-${fixed_block_wide/2-0.5}" />
     
