@@ -6,10 +6,8 @@ motion_physical::motion_physical(ros::NodeHandle& nodehandle, string ArmPairName
     MasterDxl( initializeArmDef("MasterDxl", ArmPairName) ),
     SlaveDxl( initializeArmDef("SlaveDxl", ArmPairName) )
 {
-    // If it is necessary to reproduce the trajectory, initialize the main motor according to the slave motor mode
-    if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
-    else config_master_dxl(MasterDxl);
-    config_slave_dxl(SlaveDxl);
+    config_dxl(MasterDxl);
+    config_dxl(SlaveDxl);
 
     cbType = boost::bind(&motion_physical::dyn_cb, this, _1, _2);
     server.setCallback(cbType);
@@ -94,10 +92,11 @@ motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& par
     ros::param::get(ArmPairName + "/arm_number", arm_number);
     vector<int> zero(joints_number,0);
     _pid pid;
+    vector<_pid> v_pid(joints_number,pid);
     
     ArmDef arm =
     {
-        str.c_str(), ID, zero, zero, zero, pid,
+        str.c_str(), ID, zero, zero, zero, v_pid,
         PortHandler::getPortHandler(arm.DEVICE_NAME),
         GroupSyncWrite(arm.portHandler, packetHandler, ADDR_GOAL_POSITION, LEN_POSITION),
         GroupSyncRead(arm.portHandler, packetHandler, ADDR_PRESENT_POSITION, LEN_POSITION),
@@ -297,23 +296,8 @@ void motion_physical::homing(ArmDef& Arm)
     }
 }
 
-// Configure the motor of the slave robotic arm and return it to zero position
-void motion_physical::config_slave_dxl(ArmDef& Arm)
-{
-    // Return to zero position
-    homing(Arm);
-
-    // Set motor working mode and operating mode
-    if(Gripper_with_current)
-        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[joints_number - 1], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
-    for(size_t i=0; i<joints_number; i++)
-    {
-        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[i], ADDR_DRIVE_MODE, PROFILE_DISABLE, "Disable trajectory profile");
-    }
-}
-
-// Configure the motor of the master robotic arm and return it to zero position
-void motion_physical::config_master_dxl(ArmDef& Arm)
+// Configure the motor of the robotic arm and return it to zero position
+void motion_physical::config_dxl(ArmDef& Arm)
 {
     // Return to zero position
     homing(Arm);
@@ -380,29 +364,29 @@ double motion_physical::Gripper_pid_realize(_pid *pid, int actual_val)
 }
 
 // Make the motor reach the specified position according to the specified current
-void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current)
+void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, uint8_t joint_num, int target_position, uint16_t current)
 {
     uint8_t dxl_error = 0;
 
     // Convert positional deviation to target speed
-    Arm.Gripper_pid.target_value = Arm.Gripper_pid.velocity_coefficient * (target_position - Arm.present_position[joints_number-1]);
+    Arm.Gripper_pid[joint_num].target_value = Arm.Gripper_pid[joint_num].vel_ratio * (target_position - Arm.present_position[joint_num]);
     
-    Arm.Gripper_pid.output_limit = current;
+    Arm.Gripper_pid[joint_num].output_limit = current;
 
     // position error
-    if(abs(target_position - Arm.present_position[joints_number-1]) <= DXL_MOVING_STATUS_THRESHOLD)
+    if(abs(target_position - Arm.present_position[joint_num]) <= DXL_MOVING_STATUS_THRESHOLD)
     {
-        Arm.Gripper_pid.target_value = 0;
+        Arm.Gripper_pid[joint_num].target_value = 0;
     }
     // Calculate current
-    int target_current = Gripper_pid_realize(&Arm.Gripper_pid, Arm.present_velocity[joints_number-1]);
+    int target_current = Gripper_pid_realize(&Arm.Gripper_pid[joint_num], Arm.present_velocity[joint_num]);
     
     // target Current send
-    packetHandler->write4ByteTxRx(Arm.portHandler, Arm.DXL_ID[joints_number-1], ADDR_GOAL_CURRENT, target_current, &dxl_error);
+    packetHandler->write4ByteTxRx(Arm.portHandler, Arm.DXL_ID[joint_num], ADDR_GOAL_CURRENT, target_current, &dxl_error);
     if(dxl_error != 0)
         printf("%s", packetHandler->getRxPacketError(dxl_error));
     // else
-        // printf("[ID:%03d] target_current:%d\n", Arm.DXL_ID[joints_number-1], target_current);
+        // printf("[ID:%03d] target_current:%d\n", Arm.DXL_ID[joint_num], target_current);
 }
 
 // Record the trajectory of the robotic arm
@@ -453,8 +437,8 @@ void motion_physical::statusRead(void)
     joints_state_publish(MasterDxl, arm_number[0]);
     joints_state_publish(SlaveDxl, arm_number[1]);
 
-    read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
-    read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");
+    dxl_txRx(MasterDxl, "velocity");
+    dxl_txRx(SlaveDxl, "velocity");
 
     if(Record_trajectory)
     {
@@ -499,24 +483,25 @@ void motion_physical::Follow_TrajFile(void)
     }
 
     // Drive master robotic arm
-    if(Gripper_with_current)
-        SetGripperPositionWithCurrent(MasterDxl, target_position[joints_number-1], current_limit);
-    dxl_tx(MasterDxl, target_position);
+    for(size_t i=0;i<joints_number;i++)
+    {
+        SetGripperPositionWithCurrent(MasterDxl, i, target_position[i], current_limit[i]);
+    }
 }
 
 // Send motor control target
 void motion_physical::statusWrite(void)
 {
-    // Reading trajectories
+     // Reading trajectories
     if(Reproduction_trajectory)
     {
         Follow_TrajFile();
     }
 
-    // Drive master robotic arm
-    if(Gripper_with_current)
-        SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
-    dxl_tx(SlaveDxl, MasterDxl.present_position);
+    for(size_t i=0;i<joints_number;i++)
+    {
+        SetGripperPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
+    }
 }
 
 // Callback function, timely reading and sending status
@@ -529,13 +514,16 @@ void motion_physical::Timer_callback(const ros::TimerEvent& event)
 // Dynamic parameter callback
 void motion_physical::dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level)
 {
-    MasterDxl.Gripper_pid.velocity_coefficient = config.Gripper_pid_velocity_coefficient;
-    MasterDxl.Gripper_pid.Kp = config.Gripper_pid_Kp;
-    MasterDxl.Gripper_pid.Ki = config.Gripper_pid_Ki;
-    MasterDxl.Gripper_pid.Kd = config.Gripper_pid_Kd;
-    SlaveDxl.Gripper_pid.velocity_coefficient = config.Gripper_pid_velocity_coefficient;
-    SlaveDxl.Gripper_pid.Kp = config.Gripper_pid_Kp;
-    SlaveDxl.Gripper_pid.Ki = config.Gripper_pid_Ki;
-    SlaveDxl.Gripper_pid.Kd = config.Gripper_pid_Kd;
-    current_limit  = config.current_limit;
+    static uint8_t last_joint = 0;
+    if(config.joint != last_joint)
+    {
+        // 在回调函数中手动重新发布参数，以确保更新被rqt_reconfigure接收到
+        dynamic_reconfigure::Server<follow_control::dynamic_paramConfig>::CallbackType f;
+        f = boost::bind(&motion_physical::dyn_cb, this, _1, _2);
+        server.setCallback(f);
+    }
+
+    
+
+    last_joint = config.joint;
 }
