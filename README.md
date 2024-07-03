@@ -466,6 +466,8 @@ sudo python3 change_velocity_limit.py
 ```
 rqt
 ```
+然后选择piugins菜单栏中的configuration/dynamic reconfigure,选择visualization/maplot,然后再topic框内输入/joint_states/position[x],即可打开下图页面：
+![/home/hzw/hzw/RosFunctionExtension/](test.png)
 
 内容介绍：
 1. 模型（model功能包）

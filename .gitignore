@@ -34,3 +34,5 @@
 # catkin_make
 build/
 devel/
+
+*.png
