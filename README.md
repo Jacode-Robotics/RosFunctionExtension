@@ -6,7 +6,7 @@ cd RosFunctionExtension/ws_robot_arm/
 catkin_make
 ```
 
-2. View the dxl_config.yaml file in the follow_control package and modify the relevant parameters according to the comments
+2. View the dxl_config.yaml and dynamic_param.cfg file in the follow_control package and modify the relevant parameters according to the comments
 3. Run the control physical.launch file. If you want to run it directly in one step, modify the setup.bash file path in the run.sh file and run run.sh directly
 ```
 source ./devel/setup.bash
@@ -16,16 +16,18 @@ or ./src/run.sh
 ```
 You can refer to this video: [STR400 Sync Robot Tutorial - YouTube](https://www.youtube.com/watch?v=LY0OBegv0w4)
 
-If you want the robotic arm to move quickly, you need to set the speed limit value of the motor higher before running this program. If the robotic arm experiences shaking, you need to check the shaking motor and reset the motor's PID:
+If you want the robotic arm to move quickly, you need to set the speed limit value of the motor higher before running this program. If the robotic arm experiences shaking, you need to check the shaking motor and reset the speed loop PID of the motor. These parameters are dynamic parameters that can be set in rqt. After finding the appropriate parameters, change them and synchronize them to the dxl_config.yaml and dynamic_param.cfg files:
+
+set velocity limit
 ```
 git clone git@github.com:Jacode-Robotics/JA-Actuator_SDK.git
 cd ./JA-Actuator_SDK/python/tests/protocol2_0/
 sudo python3 change_velocity_limit.py
-or sudo python3 change_pid.py
 ```
-Reference video: [Change motor PID parameters Tutorial - YouTube](https://www.youtube.com/watch?v=kErCQJ4n3Wo)
-
-
+open rqt
+```
+rqt
+```
 
 
 Content introduction:
@@ -239,13 +241,50 @@ control_physical.launch
 
 It includes the model loading `<include file="$(find model)/launch/rviz.launch"/>` and the nodes that control machine motion `<node name="node_Arm_pair1" pkg="follow_control" type="node_physics_follow" args="arm_pair1" output="screen"/>`, where args is the name of the pair of robotic arms, and when controlling multiple pairs of robotic arms, it should be ensured that each pair of robotic arms has a different name. Dxl_config.yaml and dynamic_param.cfg are files that record control parameters, where dxl_config.yaml is static and dynamic_param.cfg is dynamic. Dynamic parameters can be changed directly through rqt during program execution. The names args and arm_pairx mentioned earlier are both names of a pair of robotic arms and should be consistent. The armnumber parameter is the number of the robotic arm and should be consistent with the armnumber of my_arm.xacro.
 
-Physics_follow.cpp contains the main content of this feature pack, and the control cycle of the robotic arm is controlled by a timer`timer( initializeTimerDef(ArmPairName) )`
-
-Here, after the robotic arm returns to zero, the main arm is set to current mode with a current of 0. The six joints of the robotic arm are in position mode, and the gripper is in current mode. The gripper current is converted from the position difference between the two robotic arms to the target speed and controlled by the speed loop PID. The function is`void SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current)`
+Physics_follow.cpp contains the main content of this feature pack, and the control cycle of the robotic arm is controlled by a timer:
 ```
-if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
-    else config_master_dxl(MasterDxl);
-    config_slave_dxl(SlaveDxl);
+motion_physical::motion_physical(ros::NodeHandle& nodehandle, string ArmPairName):
+    nh(nodehandle),
+    timer( initializeTimerDef(ArmPairName) ),
+    MasterDxl( initializeArmDef("MasterDxl", ArmPairName) ),
+    SlaveDxl( initializeArmDef("SlaveDxl", ArmPairName) )
+{
+    // Configure to current mode
+    config_dxl(MasterDxl);
+    config_dxl(SlaveDxl);
+
+    cbType = boost::bind(&motion_physical::dyn_cb, this, _1, _2);
+    server.setCallback(cbType);
+}
+```
+```
+// Initialize the timer and load parameters
+ros::Timer motion_physical::initializeTimerDef(string ArmPairName)
+{
+    ros::param::get(ArmPairName + "/joints_number", joints_number);
+    ros::param::get(ArmPairName + "/BAUDRATE",BAUDRATE);
+    ros::param::get(ArmPairName + "/control_cycle",control_cycle);
+    ros::param::get(ArmPairName + "/Record_trajectory", Record_trajectory);
+    ros::param::get(ArmPairName + "/Reproduction_trajectory", Reproduction_trajectory);
+    
+    return nh.createTimer(ros::Duration(control_cycle), &motion_physical::Timer_callback, this);
+}
+```
+Config_dxl() sets the main robotic arm to current mode after the robotic arm returns to zero, and the current is converted from the difference in position between the two robotic arm grippers to the target speed, which is controlled by the speed loop PID:
+```
+// Configure the motor of the robotic arm and return it to zero position
+void motion_physical::config_dxl(ArmDef& Arm)
+{
+    // Return to zero position
+    homing(Arm);
+
+    // Set motor working mode and operating mode
+    for(size_t i=0; i<joints_number; i++)
+    {
+        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[i], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
+        write_Byte_Rx(Arm.portHandler, Arm.DXL_ID[i], ADDR_GOAL_CURRENT, 0, "set goal cerrnt to 0");
+    }
+}
 ```
 
 During the reading and writing process, it is possible to record and reproduce the previous trajectory.
@@ -258,8 +297,8 @@ void motion_physical::statusRead(void)
     joints_state_publish(MasterDxl, arm_number[0]);
     joints_state_publish(SlaveDxl, arm_number[1]);
 
-    read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
-    read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");
+    dxl_txRx(MasterDxl, "velocity");
+    dxl_txRx(SlaveDxl, "velocity");
 
     if(Record_trajectory)
     {
@@ -271,16 +310,101 @@ void motion_physical::statusRead(void)
 // Send motor control target
 void motion_physical::statusWrite(void)
 {
-    // Reading trajectories
+     // Reading trajectories
     if(Reproduction_trajectory)
     {
         Follow_TrajFile();
     }
 
+    for(size_t i=0;i<joints_number;i++)
+    {
+        SetGripperPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
+    }
+}
+```
+```
+// Record the trajectory of the robotic arm
+void motion_physical::Record_traj(void)
+{
+    static bool is_first = true;
+
+    if(is_first)
+    {
+        // Delete corresponding trajectory file
+        for(size_t i=0;i<joints_number;i++)
+        {
+            // Register file stream
+            string str = to_string(i+1);
+            string filename = traj_file_path + "/joint" + str + "_pos.traj";
+            ifstream file(filename);
+            
+            // Determine if the file exists and delete it
+            if(file.good())
+            {
+                int result = std::remove(filename.c_str());
+                if (result != 0) {
+                    perror("Error deleting file"); // 输出错误信息，如果删除失败
+                } else {
+                    printf("File successfully deleted\n");
+                }
+            }
+        }
+        is_first = false;
+    }
+    // Record trajectory
+    for(size_t i=0;i<joints_number;i++)
+    {
+        string str = to_string(i+1);
+        ofstream outFile(traj_file_path + "/joint" + str + "_pos.traj", ios::app);
+        if (outFile.is_open()) {
+            outFile << setw(traj_point_len) << setfill(' ') << MasterDxl.present_position[i] << endl;
+            outFile.close();       // 关闭文件流
+        }
+    }
+}
+```
+```
+// Reproduce the trajectory recorded last time
+void motion_physical::Follow_TrajFile(void)
+{
+    static vector<int32_t> file_cursor(joints_number, 0);
+    vector<int> target_position(joints_number, 0);
+    static vector<bool> is_first(joints_number, true);
+    static vector<streampos> file_size(joints_number, 0);
+
+    for(size_t i=0;i<joints_number;i++)
+    {
+        // Open file stream
+        string str = to_string(i+1);
+        string filename = (traj_file_path + "/joint" + str + "_pos.traj");
+        ifstream inFile(filename);
+
+        // Get file size
+        if(is_first[i])
+        {
+            inFile.seekg(0, ios::end);
+            file_size[i] = inFile.tellg();
+
+            is_first[i] = false;
+        }
+
+        // Reading data from a file
+        inFile.seekg(abs(file_cursor[i]), ios::beg);
+        string value;
+        inFile >> value;
+        target_position[i] = stoi(value);
+        inFile.close();
+
+        // Set cursor position
+        file_cursor[i] += traj_point_len+1;
+        if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
+    }
+
     // Drive master robotic arm
-    if(Gripper_with_current)
-        SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
-    dxl_tx(SlaveDxl, MasterDxl.present_position);
+    for(size_t i=0;i<joints_number;i++)
+    {
+        SetGripperPositionWithCurrent(MasterDxl, i, target_position[i], current_limit[i]);
+    }
 }
 ```
 Please note that when displaying the robotic arm in rviz, it is necessary to keep the joint name of the robotic arm consistent with the my_arm.xacro file in the model function package
@@ -319,7 +443,7 @@ git clone git@github.com:Jacode-Robotics/RosFunctionExtension.git
 cd RosFunctionExtension/ws_robot_arm/
 catkin_make
 ```
-2.查看follow_control功能包内的dxl_config.yaml文件并按照注释修改相关参数
+2.查看follow_control功能包内的dxl_config.yaml和dynamic_param.cfg文件并按照注释修改相关参数
 3.运行control_physical.launch文件,如果想一步直接运行则修改run.sh文件内setup.bash文件路径再直接运行run.sh即可
 ```
 source ./devel/setup.bash
@@ -329,15 +453,19 @@ or ./src/run.sh
 ```
 可以参考这个视频： [STR400 Sync Robot Tutorial - YouTube](https://www.youtube.com/watch?v=LY0OBegv0w4)
 
-如果你想使机械臂快速运动，你需要在运行本程序之前将电机的速度限制的值设置大一些,如果机械臂出现抖动的情况则需要查看抖动的电机并重新设置电机的pid：
+如果你想使机械臂快速运动，你需要在运行本程序之前将电机的速度限制的值设置大一些,如果机械臂出现抖动的情况则需要查看抖动的电机并重新设置电机的速度环pid,这些参数为动态参数，可以在rqt里设置，在找到合适的参数后将其更改同步到dxl_config.yaml和dynamic_param.cfg文件内：
+
+设置速度限制
 ```
 git clone git@github.com:Jacode-Robotics/JA-Actuator_SDK.git
 cd ./JA-Actuator_SDK/python/tests/protocol2_0/
 sudo python3 change_velocity_limit.py
-or sudo python3 change_pid.py
 ```
-参考视频：[更改电机pid参数](https://www.youtube.com/watch?v=kErCQJ4n3Wo)
 
+打开rqt
+```
+rqt
+```
 
 内容介绍：
 1. 模型（model功能包）
@@ -551,16 +679,54 @@ control_physical.launch
 ```
 其中包含了模型加载`<include file="$(find model)/launch/rviz.launch" />`和控制机器运动的节点`<node name="node_arm_pair1" pkg="follow_control" type="node_physics_follow" args="arm_pair1" output="screen" />`，args为本对机械臂的名称，在控制多对机械臂时应该保证每对机械臂的名称都不同。dxl_config.yaml和dynamic_param.cfg为记录控制参数的文件，其中dxl_config.yaml为静态，dynamic_param.cfg为动态，动态参数可以在程序运行时直接通过rqt进行更改。其中前面提到的args与arm_pairx都是一对机械臂的名称，应该保持一致。arm_number参数为机械臂的编号，应该与my_arm.xacro的arm_number保持一致。
 
-physics_follow.cpp包含了本功能包的主要内容，机械臂的控制周期由定时器控制`timer( initializeTimerDef(ArmPairName) )`
-
-此处在机械臂回到零点后将主机械臂设置为电流模式，电流为0，从机械臂的主臂六个关节为位置模式，夹爪为电流模式，夹爪电流由两个机械臂夹爪位置差转化为目标速度并由速度环pid控制，函数为`void SetGripperPositionWithCurrent(ArmDef& Arm, int target_position, uint16_t current)`
+physics_follow.cpp包含了本功能包的主要内容，机械臂的控制周期由定时器控制：
 ```
-if(Reproduction_trajectory) config_slave_dxl(MasterDxl);
-    else config_master_dxl(MasterDxl);
-    config_slave_dxl(SlaveDxl);
+motion_physical::motion_physical(ros::NodeHandle& nodehandle, string ArmPairName):
+    nh(nodehandle),
+    timer( initializeTimerDef(ArmPairName) ),
+    MasterDxl( initializeArmDef("MasterDxl", ArmPairName) ),
+    SlaveDxl( initializeArmDef("SlaveDxl", ArmPairName) )
+{
+    // Configure to current mode
+    config_dxl(MasterDxl);
+    config_dxl(SlaveDxl);
+
+    cbType = boost::bind(&motion_physical::dyn_cb, this, _1, _2);
+    server.setCallback(cbType);
+}
+```
+```
+// Initialize the timer and load parameters
+ros::Timer motion_physical::initializeTimerDef(string ArmPairName)
+{
+    ros::param::get(ArmPairName + "/joints_number", joints_number);
+    ros::param::get(ArmPairName + "/BAUDRATE",BAUDRATE);
+    ros::param::get(ArmPairName + "/control_cycle",control_cycle);
+    ros::param::get(ArmPairName + "/Record_trajectory", Record_trajectory);
+    ros::param::get(ArmPairName + "/Reproduction_trajectory", Reproduction_trajectory);
+    
+    return nh.createTimer(ros::Duration(control_cycle), &motion_physical::Timer_callback, this);
+}
 ```
 
-在读写过程中将可以记录和复现上一轮轨迹
+config_dxl()在机械臂回到零点后将主机械臂设置为电流模式，电流由两个机械臂夹爪位置差转化为目标速度并由速度环pid控制:
+
+```
+// Configure the motor of the robotic arm and return it to zero position
+void motion_physical::config_dxl(ArmDef& Arm)
+{
+    // Return to zero position
+    homing(Arm);
+
+    // Set motor working mode and operating mode
+    for(size_t i=0; i<joints_number; i++)
+    {
+        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[i], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
+        write_Byte_Rx(Arm.portHandler, Arm.DXL_ID[i], ADDR_GOAL_CURRENT, 0, "set goal cerrnt to 0");
+    }
+}
+```
+在读写过程中如果将Record_trajectory或Reproduction_trajectory参数设置为true将可以记录或复现上一轮轨迹：
 ```
 // Read motor status
 void motion_physical::statusRead(void)
@@ -570,8 +736,8 @@ void motion_physical::statusRead(void)
     joints_state_publish(MasterDxl, arm_number[0]);
     joints_state_publish(SlaveDxl, arm_number[1]);
 
-    read_4Byte_Rx(MasterDxl.portHandler, MasterDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&MasterDxl.present_velocity[joints_number-1], "get velocity");
-    read_4Byte_Rx(SlaveDxl.portHandler, SlaveDxl.DXL_ID[joints_number-1], ADDR_PRESENT_VELOCITY, (uint32_t*)&SlaveDxl.present_velocity[joints_number-1], "get velocity");
+    dxl_txRx(MasterDxl, "velocity");
+    dxl_txRx(SlaveDxl, "velocity");
 
     if(Record_trajectory)
     {
@@ -583,16 +749,101 @@ void motion_physical::statusRead(void)
 // Send motor control target
 void motion_physical::statusWrite(void)
 {
-    // Reading trajectories
+     // Reading trajectories
     if(Reproduction_trajectory)
     {
         Follow_TrajFile();
     }
 
+    for(size_t i=0;i<joints_number;i++)
+    {
+        SetGripperPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
+    }
+}
+```
+```
+// Record the trajectory of the robotic arm
+void motion_physical::Record_traj(void)
+{
+    static bool is_first = true;
+
+    if(is_first)
+    {
+        // Delete corresponding trajectory file
+        for(size_t i=0;i<joints_number;i++)
+        {
+            // Register file stream
+            string str = to_string(i+1);
+            string filename = traj_file_path + "/joint" + str + "_pos.traj";
+            ifstream file(filename);
+            
+            // Determine if the file exists and delete it
+            if(file.good())
+            {
+                int result = std::remove(filename.c_str());
+                if (result != 0) {
+                    perror("Error deleting file"); // 输出错误信息，如果删除失败
+                } else {
+                    printf("File successfully deleted\n");
+                }
+            }
+        }
+        is_first = false;
+    }
+    // Record trajectory
+    for(size_t i=0;i<joints_number;i++)
+    {
+        string str = to_string(i+1);
+        ofstream outFile(traj_file_path + "/joint" + str + "_pos.traj", ios::app);
+        if (outFile.is_open()) {
+            outFile << setw(traj_point_len) << setfill(' ') << MasterDxl.present_position[i] << endl;
+            outFile.close();       // 关闭文件流
+        }
+    }
+}
+```
+```
+// Reproduce the trajectory recorded last time
+void motion_physical::Follow_TrajFile(void)
+{
+    static vector<int32_t> file_cursor(joints_number, 0);
+    vector<int> target_position(joints_number, 0);
+    static vector<bool> is_first(joints_number, true);
+    static vector<streampos> file_size(joints_number, 0);
+
+    for(size_t i=0;i<joints_number;i++)
+    {
+        // Open file stream
+        string str = to_string(i+1);
+        string filename = (traj_file_path + "/joint" + str + "_pos.traj");
+        ifstream inFile(filename);
+
+        // Get file size
+        if(is_first[i])
+        {
+            inFile.seekg(0, ios::end);
+            file_size[i] = inFile.tellg();
+
+            is_first[i] = false;
+        }
+
+        // Reading data from a file
+        inFile.seekg(abs(file_cursor[i]), ios::beg);
+        string value;
+        inFile >> value;
+        target_position[i] = stoi(value);
+        inFile.close();
+
+        // Set cursor position
+        file_cursor[i] += traj_point_len+1;
+        if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
+    }
+
     // Drive master robotic arm
-    if(Gripper_with_current)
-        SetGripperPositionWithCurrent(SlaveDxl, MasterDxl.present_position[joints_number-1], current_limit);
-    dxl_tx(SlaveDxl, MasterDxl.present_position);
+    for(size_t i=0;i<joints_number;i++)
+    {
+        SetGripperPositionWithCurrent(MasterDxl, i, target_position[i], current_limit[i]);
+    }
 }
 ```
 

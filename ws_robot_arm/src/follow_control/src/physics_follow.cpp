@@ -6,6 +6,7 @@ motion_physical::motion_physical(ros::NodeHandle& nodehandle, string ArmPairName
     MasterDxl( initializeArmDef("MasterDxl", ArmPairName) ),
     SlaveDxl( initializeArmDef("SlaveDxl", ArmPairName) )
 {
+    // Configure to current mode
     config_dxl(MasterDxl);
     config_dxl(SlaveDxl);
 
@@ -73,26 +74,49 @@ ros::Timer motion_physical::initializeTimerDef(string ArmPairName)
     ros::param::get(ArmPairName + "/joints_number", joints_number);
     ros::param::get(ArmPairName + "/BAUDRATE",BAUDRATE);
     ros::param::get(ArmPairName + "/control_cycle",control_cycle);
-    ros::param::get(ArmPairName + "/Gripper_with_current", Gripper_with_current);
     ros::param::get(ArmPairName + "/Record_trajectory", Record_trajectory);
     ros::param::get(ArmPairName + "/Reproduction_trajectory", Reproduction_trajectory);
-
+    
     return nh.createTimer(ros::Duration(control_cycle), &motion_physical::Timer_callback, this);
 }
 
 // Initialize ArmDef type structure
 motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& paramName, string ArmPairName)
 {
-    // load parameters
     vector<int> ID;
     string str = "";
+    static vector<float> joint_vel_ratio;
+    static vector<float> joint_pid_Kp;
+    static vector<float> joint_pid_Ki;
+    static vector<float> joint_pid_Kd;
+    static vector<_pid> v_pid;
+    v_pid.resize(joints_number);
+    bool is_first = true;
+    
+    if(is_first)
+    {
+        ros::param::get(ArmPairName + "/traj_file_path", traj_file_path);
+        ros::param::get(ArmPairName + "/arm_number", arm_number);
+        ros::param::get(ArmPairName + "/joint_current_limit", current_limit);
+        
+        ros::param::get(ArmPairName + "/joint_vel_ratio", joint_vel_ratio);
+        ros::param::get(ArmPairName + "/joint_pid_Kp", joint_pid_Kp);
+        ros::param::get(ArmPairName + "/joint_pid_Ki", joint_pid_Ki);
+        ros::param::get(ArmPairName + "/joint_pid_Kd", joint_pid_Kd);
+
+        is_first = false;
+    }
+    
     ros::param::get(ArmPairName + "/" + paramName + "/DXL_ID", ID);
     ros::param::get(ArmPairName + "/" + paramName + "/DEVICE_NAME", str);
-    ros::param::get(ArmPairName + "/traj_file_path", traj_file_path);
-    ros::param::get(ArmPairName + "/arm_number", arm_number);
+    for (size_t i = 0; i < joints_number; i++)
+    {
+        v_pid[i].vel_ratio = joint_vel_ratio[i];
+        v_pid[i].Kp = joint_pid_Kp[i];
+        v_pid[i].Ki = joint_pid_Ki[i];
+        v_pid[i].Kd = joint_pid_Kd[i];
+    }
     vector<int> zero(joints_number,0);
-    _pid pid;
-    vector<_pid> v_pid(joints_number,pid);
     
     ArmDef arm =
     {
@@ -219,7 +243,7 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
     else
     {
         present_value->clear();
-        for(size_t i=0;i<Arm.DXL_ID.size();i++)
+        for(size_t i=0;i<joints_number;i++)
         {
             // Get data from read buffer 
             value = groupSyncRead->getData(Arm.DXL_ID[i], addr, len_addr);
@@ -331,7 +355,7 @@ void motion_physical::joints_state_publish(ArmDef& Arm, string robot_ref)
 // Perform speed loop PID calculation for gripper
 // pid: The corresponding PID structure of the robotic arm
 // actual_val: actual value
-double motion_physical::Gripper_pid_realize(_pid *pid, int actual_val)
+double motion_physical::vel_pid_realize(_pid *pid, int actual_val)
 {
 	/* Calculate the error between the target value and the actual value */
     pid->err=pid->target_value-actual_val;
@@ -344,14 +368,10 @@ double motion_physical::Gripper_pid_realize(_pid *pid, int actual_val)
     pid->integral += pid->err;
 	
     /* Integral limiting amplitude */
-    pid->integral = (pid->integral > 50000) ? 50000 : ((pid->integral < -50000) ? -50000 : pid->integral);
+    pid->integral = (pid->integral > 100000) ? 100000 : ((pid->integral < -100000) ? -100000 : pid->integral);
 
 	/* Implementation of PID algorithm */
     pid->output_value = pid->Kp * pid->err + pid->Ki * pid->integral + pid->Kd * (pid->err - pid->last_err);
-    
-    /* Eliminating dead zones */
-    if(pid->output_value>=0) pid->output_value += 35;
-    else pid->output_value -= 35;
 
     /* Output limiting */
     pid->output_value = (pid->output_value > pid->output_limit) ? pid->output_limit :\
@@ -369,17 +389,17 @@ void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, uint8_t joint_n
     uint8_t dxl_error = 0;
 
     // Convert positional deviation to target speed
-    Arm.Gripper_pid[joint_num].target_value = Arm.Gripper_pid[joint_num].vel_ratio * (target_position - Arm.present_position[joint_num]);
+    Arm.vel_pid[joint_num].target_value = Arm.vel_pid[joint_num].vel_ratio * (target_position - Arm.present_position[joint_num]);
     
-    Arm.Gripper_pid[joint_num].output_limit = current;
+    Arm.vel_pid[joint_num].output_limit = current;
 
     // position error
     if(abs(target_position - Arm.present_position[joint_num]) <= DXL_MOVING_STATUS_THRESHOLD)
     {
-        Arm.Gripper_pid[joint_num].target_value = 0;
+        Arm.vel_pid[joint_num].target_value = 0;
     }
     // Calculate current
-    int target_current = Gripper_pid_realize(&Arm.Gripper_pid[joint_num], Arm.present_velocity[joint_num]);
+    int target_current = vel_pid_realize(&Arm.vel_pid[joint_num], Arm.present_velocity[joint_num]);
     
     // target Current send
     packetHandler->write4ByteTxRx(Arm.portHandler, Arm.DXL_ID[joint_num], ADDR_GOAL_CURRENT, target_current, &dxl_error);
@@ -514,16 +534,31 @@ void motion_physical::Timer_callback(const ros::TimerEvent& event)
 // Dynamic parameter callback
 void motion_physical::dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level)
 {
-    static uint8_t last_joint = 0;
-    if(config.joint != last_joint)
+    static uint8_t last_joint = 255;
+    static bool is_first = true;
+    // Synchronize parameter values displayed in rqt
+    if(config.joint != last_joint && !is_first)
     {
-        // 在回调函数中手动重新发布参数，以确保更新被rqt_reconfigure接收到
-        dynamic_reconfigure::Server<follow_control::dynamic_paramConfig>::CallbackType f;
-        f = boost::bind(&motion_physical::dyn_cb, this, _1, _2);
-        server.setCallback(f);
+        config.joint_vel_ratio = MasterDxl.vel_pid[config.joint].vel_ratio;
+        config.joint_pid_Kp = MasterDxl.vel_pid[config.joint].Kp;
+        config.joint_pid_Ki = MasterDxl.vel_pid[config.joint].Ki;
+        config.joint_pid_Kd = MasterDxl.vel_pid[config.joint].Kd;
+        config.joint_current_limit = current_limit[config.joint];
+
+        // Manually republish parameters in the callback function to ensure that the update is received by rqt_reconfigure
+        server.setCallback(cbType);
     }
 
-    
+    MasterDxl.vel_pid[config.joint].vel_ratio = config.joint_vel_ratio;
+    MasterDxl.vel_pid[config.joint].Kp = config.joint_pid_Kp;
+    MasterDxl.vel_pid[config.joint].Ki = config.joint_pid_Ki;
+    MasterDxl.vel_pid[config.joint].Kd = config.joint_pid_Kd;
+    SlaveDxl.vel_pid[config.joint].vel_ratio = config.joint_vel_ratio;
+    SlaveDxl.vel_pid[config.joint].Kp = config.joint_pid_Kp;
+    SlaveDxl.vel_pid[config.joint].Ki = config.joint_pid_Ki;
+    SlaveDxl.vel_pid[config.joint].Kd = config.joint_pid_Kd;
+    current_limit[config.joint] = config.joint_current_limit;
 
     last_joint = config.joint;
+    is_first = false;
 }
