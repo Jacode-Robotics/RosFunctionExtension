@@ -28,6 +28,8 @@ open rqt
 ```
 rqt
 ```
+Then select the configuration/dynamic configuration in the piugins menu bar, select visualization/maplot, and enter/joint_states/position[x] in the topic box to open the following page:
+![/home/hzw/hzw/RosFunctionExtension/](test.png)
 
 
 Content introduction:
