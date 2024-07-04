@@ -250,7 +250,7 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
             if (str == "current" && value > INT16_MAX)
                 value = static_cast<int16_t>(value);
             present_value->push_back(value);
-            // ROS_INFO("[ID:%03d] get%s : [%s:%d]", Arm.DXL_ID[i], str.c_str(), str.c_str(), (*present_value)[i]);
+            ROS_INFO("[ID:%03d] get%s : [%s:%d]", Arm.DXL_ID[i], str.c_str(), str.c_str(), (*present_value)[i]);
         }
     }
 }
@@ -495,7 +495,10 @@ void motion_physical::Follow_TrajFile(void)
         file_cursor[i] += traj_point_len+1;
         if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
     }
-    cout << target_position[0] << " " << target_position[1] << " " << target_position[2] << " " << target_position[3] << " " << target_position[4] << " " << target_position[5] << endl;
+    cout << "position read from file: "
+         << target_position[0] << " " << target_position[1] << " " << target_position[2] << " "
+         << target_position[3] << " " << target_position[4] << " " << target_position[5]
+         << target_position[6] << endl;
     
     // Calculate master robotic arm current
     for(size_t i=0;i<joints_number;i++)
