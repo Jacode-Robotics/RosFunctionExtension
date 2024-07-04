@@ -13,13 +13,13 @@ arm_pair1:           # Should be consistent with args in control_physical.launch
   joint_current_limit: [300,     600,    400,    600,     500,    450,    600 ]  # Joint maximum current limit
 
   Record_trajectory: false           # Record trajectory or not
-  Reproduction_trajectory: false     # Reproduction trajectory
+  Reproduction_trajectory: true     # Reproduction trajectory
   traj_file_path: /home/hzw/RosFunctionExtension/ws_robot_arm/src/follow_control/traj  # Track file path
 
   MasterDxl:            # master arm
     DXL_ID: [1,2,3,4,5,6,7]         # motor ID
-    DEVICE_NAME: /dev/ttyUSB0       # Serial port number (supports using the same or different serial port numbers for each robotic arm)
+    DEVICE_NAME: /dev/ttyUSB1       # Serial port number (supports using the same or different serial port numbers for each robotic arm)
 
   SlaveDxl:             # slave arm
     DXL_ID: [8,9,10,11,12,13,14]
-    DEVICE_NAME: /dev/ttyUSB1
+    DEVICE_NAME: /dev/ttyUSB0

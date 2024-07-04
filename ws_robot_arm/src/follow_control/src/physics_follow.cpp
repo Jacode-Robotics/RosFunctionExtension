@@ -120,7 +120,7 @@ motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& par
     
     ArmDef arm =
     {
-        str.c_str(), ID, zero, zero, zero, v_pid,
+        str.c_str(), ID, zero, zero, *(vector<int16_t>*)&zero, v_pid,
         PortHandler::getPortHandler(arm.DEVICE_NAME),
         GroupSyncWrite(arm.portHandler, packetHandler, ADDR_GOAL_POSITION, LEN_POSITION),
         GroupSyncRead(arm.portHandler, packetHandler, ADDR_PRESENT_POSITION, LEN_POSITION),
@@ -215,7 +215,7 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
 
     // Default to"position"
     GroupSyncRead* groupSyncRead = &Arm.groupSyncReadPosition;
-    vector<int>* present_value = &Arm.present_position;
+    vector<int32_t>* present_value = &Arm.present_position;
     uint16_t addr = ADDR_PRESENT_POSITION;
     uint8_t len_addr = LEN_POSITION;
     if(str == "velocity")
@@ -228,7 +228,7 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
     else if(str == "current")
     {
         groupSyncRead = &Arm.groupSyncReadCurrent;
-        present_value = &Arm.present_current;
+        present_value = (vector<int32_t>*)&Arm.present_current;
         addr = ADDR_PRESENT_CURRENT;
         len_addr = LEN_CURRENT;
     }
@@ -250,7 +250,7 @@ void motion_physical::dxl_txRx(ArmDef& Arm, string str)
             if (str == "current" && value > INT16_MAX)
                 value = static_cast<int16_t>(value);
             present_value->push_back(value);
-            ROS_INFO("[ID:%03d] get%s : [%s:%d]", Arm.DXL_ID[i], str.c_str(), str.c_str(), (*present_value)[i]);
+            // ROS_INFO("[ID:%03d] get%s : [%s:%d]", Arm.DXL_ID[i], str.c_str(), str.c_str(), (*present_value)[i]);
         }
     }
 }
@@ -384,7 +384,7 @@ double motion_physical::vel_pid_realize(_pid *pid, int actual_val)
 }
 
 // Make the motor reach the specified position according to the specified current
-void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, uint8_t joint_num, int target_position, uint16_t current)
+int16_t motion_physical::SetPositionWithCurrent(ArmDef& Arm, uint8_t joint_num, int target_position, uint16_t current)
 {
     uint8_t dxl_error = 0;
 
@@ -399,14 +399,7 @@ void motion_physical::SetGripperPositionWithCurrent(ArmDef& Arm, uint8_t joint_n
         Arm.vel_pid[joint_num].target_value = 0;
     }
     // Calculate current
-    int target_current = vel_pid_realize(&Arm.vel_pid[joint_num], Arm.present_velocity[joint_num]);
-    
-    // target Current send
-    packetHandler->write4ByteTxRx(Arm.portHandler, Arm.DXL_ID[joint_num], ADDR_GOAL_CURRENT, target_current, &dxl_error);
-    if(dxl_error != 0)
-        printf("%s", packetHandler->getRxPacketError(dxl_error));
-    // else
-        // printf("[ID:%03d] target_current:%d\n", Arm.DXL_ID[joint_num], target_current);
+    return vel_pid_realize(&Arm.vel_pid[joint_num], Arm.present_velocity[joint_num]);
 }
 
 // Record the trajectory of the robotic arm
@@ -473,6 +466,7 @@ void motion_physical::Follow_TrajFile(void)
     vector<int> target_position(joints_number, 0);
     static vector<bool> is_first(joints_number, true);
     static vector<streampos> file_size(joints_number, 0);
+    vector<int16_t> goal_current(joints_number, 0);
 
     for(size_t i=0;i<joints_number;i++)
     {
@@ -501,12 +495,15 @@ void motion_physical::Follow_TrajFile(void)
         file_cursor[i] += traj_point_len+1;
         if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
     }
-
-    // Drive master robotic arm
+    cout << target_position[0] << " " << target_position[1] << " " << target_position[2] << " " << target_position[3] << " " << target_position[4] << " " << target_position[5] << endl;
+    
+    // Calculate master robotic arm current
     for(size_t i=0;i<joints_number;i++)
     {
-        SetGripperPositionWithCurrent(MasterDxl, i, target_position[i], current_limit[i]);
+        goal_current[i] = SetPositionWithCurrent(MasterDxl, i, target_position[i], current_limit[i]);
     }
+    // Drive master robotic arm
+    dxl_tx_cur(MasterDxl, goal_current);
 }
 
 // Send motor control target
@@ -518,10 +515,15 @@ void motion_physical::statusWrite(void)
         Follow_TrajFile();
     }
 
+    vector<int16_t> goal_current(joints_number, 0);
+    
+    // Calculate Slave robotic arm current
     for(size_t i=0;i<joints_number;i++)
     {
-        SetGripperPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
+        goal_current[i] = SetPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
     }
+    // Drive Slave robotic arm
+    dxl_tx_cur(SlaveDxl, goal_current);
 }
 
 // Callback function, timely reading and sending status

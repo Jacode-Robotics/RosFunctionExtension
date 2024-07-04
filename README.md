@@ -318,10 +318,15 @@ void motion_physical::statusWrite(void)
         Follow_TrajFile();
     }
 
+    vector<int16_t> goal_current(joints_number, 0);
+    
+    // Calculate Slave robotic arm current
     for(size_t i=0;i<joints_number;i++)
     {
-        SetGripperPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
+        goal_current[i] = SetPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
     }
+    // Drive Slave robotic arm
+    dxl_tx_cur(SlaveDxl, goal_current);
 }
 ```
 ```
@@ -402,11 +407,13 @@ void motion_physical::Follow_TrajFile(void)
         if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
     }
 
-    // Drive master robotic arm
+    // Calculate master robotic arm current
     for(size_t i=0;i<joints_number;i++)
     {
-        SetGripperPositionWithCurrent(MasterDxl, i, target_position[i], current_limit[i]);
+        goal_current[i] = SetPositionWithCurrent(MasterDxl, i, target_position[i], current_limit[i]);
     }
+    // Drive master robotic arm
+    dxl_tx_cur(MasterDxl, goal_current);
 }
 ```
 Please note that when displaying the robotic arm in rviz, it is necessary to keep the joint name of the robotic arm consistent with the my_arm.xacro file in the model function package

@@ -75,7 +75,7 @@
                 vector<int> DXL_ID;                      // motor ID
                 vector<int32_t> present_position;        // Current position of motor
                 vector<int32_t> present_velocity;        // Current speed of motor
-                vector<int32_t> present_current;         // Current of motor
+                vector<int16_t> present_current;         // Current of motor
                 vector<_pid> vel_pid;                // Gripper speed loop PID
 
                 PortHandler *portHandler;                // Serial port Handler
@@ -131,7 +131,7 @@
             inline void config_dxl(ArmDef& Arm);
             inline void joints_state_publish(ArmDef& Arm, string robot_ref);
             inline double vel_pid_realize(_pid *pid, int actual_val);
-            inline void SetGripperPositionWithCurrent(ArmDef& Arm, uint8_t joint_num, int target_position, uint16_t current);
+            inline int16_t SetPositionWithCurrent(ArmDef& Arm, uint8_t joint_num, int target_position, uint16_t current);
             inline void Follow_TrajFile(void);
             inline void Record_traj(void);
             void dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level);
