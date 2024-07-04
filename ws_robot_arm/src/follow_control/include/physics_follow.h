@@ -51,7 +51,7 @@
     #define DXL_MOVING_STATUS_THRESHOLD 20        // position accuracy
     #define DXL_VELOCITY_THRESHOLD      50        // velocity accuracy
 
-    #define traj_point_len              7         // The length of a trajectory point in a traj file
+    #define TRAJ_POINT_LEN              7         // The length of a trajectory point in a traj file
 
     // physical class
     class motion_physical

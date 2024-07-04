@@ -6,14 +6,14 @@ arm_pair1:           # Should be consistent with args in control_physical.launch
   arm_number: ["1","2"]             # Number of the robotic arm(Should be the same as in my_arm.xacro)
 
   # The one axis parameter here will be replaced by the parameter of dynamicparam.cfg
-  joint_vel_ratio:     [50,      50,     50,     50,      50,     50,     50  ]  # The proportion of position difference converted to rotational speed
+  joint_vel_ratio:     [25,      25,     25,     25,      25,     25,     25  ]  # The proportion of position difference converted to rotational speed
   joint_pid_Kp:        [0.1,     0.15,   0.15,   0.10,    0.10,   0.15,   0.1 ]  # Speed loop PID
   joint_pid_Ki:        [0.005,   0.01,   0.01,   0.001,   0.01,   0.01,   0   ]
   joint_pid_Kd:        [0,       0.01,   0.01,   0.0,     0,      0,      0   ]
   joint_current_limit: [300,     600,    400,    600,     500,    450,    600 ]  # Joint maximum current limit
 
   Record_trajectory: false           # Record trajectory or not
-  Reproduction_trajectory: true     # Reproduction trajectory
+  Reproduction_trajectory: false     # Reproduction trajectory
   traj_file_path: /home/hzw/RosFunctionExtension/ws_robot_arm/src/follow_control/traj  # Track file path
 
   MasterDxl:            # master arm

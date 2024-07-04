@@ -436,7 +436,7 @@ void motion_physical::Record_traj(void)
         string str = to_string(i+1);
         ofstream outFile(traj_file_path + "/joint" + str + "_pos.traj", ios::app);
         if (outFile.is_open()) {
-            outFile << setw(traj_point_len) << setfill(' ') << MasterDxl.present_position[i] << endl;
+            outFile << setw(TRAJ_POINT_LEN) << setfill(' ') << MasterDxl.present_position[i] << endl;
             outFile.close();       // 关闭文件流
         }
     }
@@ -492,8 +492,8 @@ void motion_physical::Follow_TrajFile(void)
         inFile.close();
 
         // Set cursor position
-        file_cursor[i] += traj_point_len+1;
-        if(abs(file_cursor[i])>=file_size[i] - traj_point_len-1) file_cursor[i] = -file_cursor[i];
+        file_cursor[i] += TRAJ_POINT_LEN+1;
+        if(abs(file_cursor[i])>=file_size[i] - TRAJ_POINT_LEN-1) file_cursor[i] = -file_cursor[i];
     }
     cout << "position read from file: "
          << target_position[0] << " " << target_position[1] << " " << target_position[2] << " "
