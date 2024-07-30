@@ -14,58 +14,11 @@ motion_physical::motion_physical(ros::NodeHandle& nodehandle, string ArmPairName
     server.setCallback(cbType);
 }
 
-// delay ms
-void delay_ms(int milliseconds) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
-}
-
-// Write a byte to the protocol table
-void motion_physical::write_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t data, string output)
+// Callback function, timely reading and sending status
+void motion_physical::Timer_callback(const ros::TimerEvent& event)
 {
-    uint8_t dxl_error = 0;
-    int dxl_comm_result = COMM_TX_FAIL;
-
-    packetHandler->write1ByteTxRx(ph, ID, addr, data, &dxl_error);
-    if(dxl_error != 0)
-        printf("%s", packetHandler->getRxPacketError(dxl_error));
-    else
-        printf("[ID:%03d] %s success\n", ID, output.c_str());
-}
-
-// read a byte from the protocol table
-void motion_physical::read_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint8_t* data, string output)
-{
-    uint8_t dxl_error = 0;
-    int dxl_comm_result = COMM_TX_FAIL;
-    dxl_comm_result = packetHandler->read1ByteTxRx(ph, ID, addr, data, &dxl_error);
-    if (dxl_comm_result == COMM_SUCCESS) {
-        ROS_INFO("[ID:%03d] %s: %d", ID, output.c_str(), *data);
-    } else {
-        ROS_INFO("[ID:%03d] Failed to %s! Result: %d", ID, output.c_str(), dxl_comm_result);
-    }
-}
-
-// read 4 byte from the protocol table
-void motion_physical::read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint32_t* data, string output)
-{
-    uint8_t dxl_error = 0;
-    int dxl_comm_result = COMM_TX_FAIL;
-    dxl_comm_result = packetHandler->read4ByteTxRx(ph, ID, addr, data, &dxl_error);
-    if (dxl_comm_result == COMM_SUCCESS) {
-        ROS_INFO("[ID:%03d] %s: %d", ID, output.c_str(), *data);
-    } else {
-        ROS_INFO("[ID:%03d] Failed to %s! Result: %d", ID, output.c_str(), dxl_comm_result);
-    }
-}
-
-// Set motor operation or drive mode
-// addr: ADDR_OPERATOR_MODE or ADDR_DRIVE_MODE
-// mode: Reference Protocol Table
-void motion_physical::SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t mode, string output)
-{
-    write_Byte_Rx(ph, ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, "disable Dynamixel Torque");
-    write_Byte_Rx(ph, ID, addr, mode, output);
-    write_Byte_Rx(ph, ID, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, "Enable Dynamixel Torque");
+    statusRead();
+    statusWrite();
 }
 
 // Initialize the timer and load parameters
@@ -131,6 +84,140 @@ motion_physical::ArmDef motion_physical::initializeArmDef(const std::string& par
     };
 
     return arm;
+}
+
+// Configure the motor of the robotic arm and return it to zero position
+void motion_physical::config_dxl(ArmDef& Arm)
+{
+    // Return to zero position
+    homing(Arm);
+
+    // Set motor working mode and operating mode
+    for(size_t i=0; i<joints_number; i++)
+    {
+        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[i], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
+        write_Byte_Rx(Arm.portHandler, Arm.DXL_ID[i], ADDR_GOAL_CURRENT, 0, "set goal cerrnt to 0");
+    }
+}
+
+// Dynamic parameter callback
+void motion_physical::dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level)
+{
+    static uint8_t last_joint = 255;
+    static bool is_first = true;
+    // Synchronize parameter values displayed in rqt
+    if(config.joint != last_joint && !is_first)
+    {
+        config.joint_vel_ratio = MasterDxl.vel_pid[config.joint].vel_ratio;
+        config.joint_pid_Kp = MasterDxl.vel_pid[config.joint].Kp;
+        config.joint_pid_Ki = MasterDxl.vel_pid[config.joint].Ki;
+        config.joint_pid_Kd = MasterDxl.vel_pid[config.joint].Kd;
+        config.joint_current_limit = current_limit[config.joint];
+
+        // Manually republish parameters in the callback function to ensure that the update is received by rqt_reconfigure
+        server.setCallback(cbType);
+    }
+
+    MasterDxl.vel_pid[config.joint].vel_ratio = config.joint_vel_ratio;
+    MasterDxl.vel_pid[config.joint].Kp = config.joint_pid_Kp;
+    MasterDxl.vel_pid[config.joint].Ki = config.joint_pid_Ki;
+    MasterDxl.vel_pid[config.joint].Kd = config.joint_pid_Kd;
+    SlaveDxl.vel_pid[config.joint].vel_ratio = config.joint_vel_ratio;
+    SlaveDxl.vel_pid[config.joint].Kp = config.joint_pid_Kp;
+    SlaveDxl.vel_pid[config.joint].Ki = config.joint_pid_Ki;
+    SlaveDxl.vel_pid[config.joint].Kd = config.joint_pid_Kd;
+    current_limit[config.joint] = config.joint_current_limit;
+
+    last_joint = config.joint;
+    is_first = false;
+}
+
+// Read motor status
+void motion_physical::statusRead(void)
+{
+    dxl_txRx(MasterDxl, "position");
+    dxl_txRx(SlaveDxl, "position");
+    dxl_txRx(MasterDxl, "velocity");
+    dxl_txRx(SlaveDxl, "velocity");
+
+    joints_state_publish(MasterDxl, arm_number[0]);
+    joints_state_publish(SlaveDxl, arm_number[1]);
+
+    if(Record_trajectory) Record_traj();
+}
+
+// Send motor control target
+void motion_physical::statusWrite(void)
+{
+    // Reading trajectories
+    if(Reproduction_trajectory) Follow_TrajFile();
+
+    // Calculate Slave robotic arm current
+    // Drive Slave robotic arm
+    vector<int16_t> goal_current(joints_number, 0);
+    for(size_t i=0;i<joints_number;i++)
+    {
+        goal_current[i] = SetPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
+    }
+    dxl_tx_cur(SlaveDxl, goal_current);
+}
+
+
+
+// delay ms
+void delay_ms(int milliseconds) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+}
+
+// Write a byte to the protocol table
+void motion_physical::write_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t data, string output)
+{
+    uint8_t dxl_error = 0;
+    int dxl_comm_result = COMM_TX_FAIL;
+
+    packetHandler->write1ByteTxRx(ph, ID, addr, data, &dxl_error);
+    if(dxl_error != 0)
+        printf("%s", packetHandler->getRxPacketError(dxl_error));
+    else
+        printf("[ID:%03d] %s success\n", ID, output.c_str());
+}
+
+// read a byte from the protocol table
+void motion_physical::read_Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint8_t* data, string output)
+{
+    uint8_t dxl_error = 0;
+    int dxl_comm_result = COMM_TX_FAIL;
+    dxl_comm_result = packetHandler->read1ByteTxRx(ph, ID, addr, data, &dxl_error);
+    if (dxl_comm_result == COMM_SUCCESS) {
+        ROS_INFO("[ID:%03d] %s: %d", ID, output.c_str(), *data);
+    } else {
+        ROS_INFO("[ID:%03d] Failed to %s! Result: %d", ID, output.c_str(), dxl_comm_result);
+    }
+}
+
+// read 4 byte from the protocol table
+void motion_physical::read_4Byte_Rx(PortHandler* ph, uint8_t ID, uint16_t addr, uint32_t* data, string output)
+{
+    uint8_t dxl_error = 0;
+    int dxl_comm_result = COMM_TX_FAIL;
+    dxl_comm_result = packetHandler->read4ByteTxRx(ph, ID, addr, data, &dxl_error);
+    if (dxl_comm_result == COMM_SUCCESS) {
+        ROS_INFO("[ID:%03d] %s: %d", ID, output.c_str(), *data);
+    } else {
+        ROS_INFO("[ID:%03d] Failed to %s! Result: %d", ID, output.c_str(), dxl_comm_result);
+    }
+}
+
+
+
+// Set motor operation or drive mode
+// addr: ADDR_OPERATOR_MODE or ADDR_DRIVE_MODE
+// mode: Reference Protocol Table
+void motion_physical::SetOperatorDriveMode(PortHandler* ph, uint8_t ID, uint16_t addr, int8_t mode, string output)
+{
+    write_Byte_Rx(ph, ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, "disable Dynamixel Torque");
+    write_Byte_Rx(ph, ID, addr, mode, output);
+    write_Byte_Rx(ph, ID, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, "Enable Dynamixel Torque");
 }
 
 // Function: Package the position or speed function of the group writing motor
@@ -320,19 +407,7 @@ void motion_physical::homing(ArmDef& Arm)
     }
 }
 
-// Configure the motor of the robotic arm and return it to zero position
-void motion_physical::config_dxl(ArmDef& Arm)
-{
-    // Return to zero position
-    homing(Arm);
 
-    // Set motor working mode and operating mode
-    for(size_t i=0; i<joints_number; i++)
-    {
-        SetOperatorDriveMode(Arm.portHandler, Arm.DXL_ID[i], ADDR_OPERATOR_MODE, CURRENT_MODE, "set operator mode to current");
-        write_Byte_Rx(Arm.portHandler, Arm.DXL_ID[i], ADDR_GOAL_CURRENT, 0, "set goal cerrnt to 0");
-    }
-}
 
 // Joints status publish
 // robot_ref: Robot arm serial number
@@ -386,11 +461,15 @@ double motion_physical::vel_pid_realize(_pid *pid, int actual_val)
 // Make the motor reach the specified position according to the specified current
 int16_t motion_physical::SetPositionWithCurrent(ArmDef& Arm, uint8_t joint_num, int target_position, uint16_t current)
 {
-    uint8_t dxl_error = 0;
+    int target_limit = 5000;
 
     // Convert positional deviation to target speed
     Arm.vel_pid[joint_num].target_value = Arm.vel_pid[joint_num].vel_ratio * (target_position - Arm.present_position[joint_num]);
     
+    Arm.vel_pid[joint_num].target_value = Arm.vel_pid[joint_num].target_value > target_limit ? target_limit:
+                                          Arm.vel_pid[joint_num].target_value < -target_limit ? -target_limit:
+                                          Arm.vel_pid[joint_num].target_value;
+
     Arm.vel_pid[joint_num].output_limit = current;
 
     // position error
@@ -422,7 +501,7 @@ void motion_physical::Record_traj(void)
             {
                 int result = std::remove(filename.c_str());
                 if (result != 0) {
-                    perror("Error deleting file"); // 输出错误信息，如果删除失败
+                    perror("Error deleting file");
                 } else {
                     printf("File successfully deleted\n");
                 }
@@ -439,23 +518,6 @@ void motion_physical::Record_traj(void)
             outFile << setw(TRAJ_POINT_LEN) << setfill(' ') << MasterDxl.present_position[i] << endl;
             outFile.close();       // 关闭文件流
         }
-    }
-}
-
-// Read motor status
-void motion_physical::statusRead(void)
-{
-    dxl_txRx(MasterDxl, "position");
-    dxl_txRx(SlaveDxl, "position");
-    joints_state_publish(MasterDxl, arm_number[0]);
-    joints_state_publish(SlaveDxl, arm_number[1]);
-
-    dxl_txRx(MasterDxl, "velocity");
-    dxl_txRx(SlaveDxl, "velocity");
-
-    if(Record_trajectory)
-    {
-        Record_traj();
     }
 }
 
@@ -509,61 +571,7 @@ void motion_physical::Follow_TrajFile(void)
     dxl_tx_cur(MasterDxl, goal_current);
 }
 
-// Send motor control target
-void motion_physical::statusWrite(void)
-{
-     // Reading trajectories
-    if(Reproduction_trajectory)
-    {
-        Follow_TrajFile();
-    }
 
-    vector<int16_t> goal_current(joints_number, 0);
-    
-    // Calculate Slave robotic arm current
-    for(size_t i=0;i<joints_number;i++)
-    {
-        goal_current[i] = SetPositionWithCurrent(SlaveDxl, i, MasterDxl.present_position[i], current_limit[i]);
-    }
-    // Drive Slave robotic arm
-    dxl_tx_cur(SlaveDxl, goal_current);
-}
 
-// Callback function, timely reading and sending status
-void motion_physical::Timer_callback(const ros::TimerEvent& event)
-{
-    statusRead();
-    statusWrite();
-}
 
-// Dynamic parameter callback
-void motion_physical::dyn_cb(follow_control::dynamic_paramConfig& config, uint32_t level)
-{
-    static uint8_t last_joint = 255;
-    static bool is_first = true;
-    // Synchronize parameter values displayed in rqt
-    if(config.joint != last_joint && !is_first)
-    {
-        config.joint_vel_ratio = MasterDxl.vel_pid[config.joint].vel_ratio;
-        config.joint_pid_Kp = MasterDxl.vel_pid[config.joint].Kp;
-        config.joint_pid_Ki = MasterDxl.vel_pid[config.joint].Ki;
-        config.joint_pid_Kd = MasterDxl.vel_pid[config.joint].Kd;
-        config.joint_current_limit = current_limit[config.joint];
 
-        // Manually republish parameters in the callback function to ensure that the update is received by rqt_reconfigure
-        server.setCallback(cbType);
-    }
-
-    MasterDxl.vel_pid[config.joint].vel_ratio = config.joint_vel_ratio;
-    MasterDxl.vel_pid[config.joint].Kp = config.joint_pid_Kp;
-    MasterDxl.vel_pid[config.joint].Ki = config.joint_pid_Ki;
-    MasterDxl.vel_pid[config.joint].Kd = config.joint_pid_Kd;
-    SlaveDxl.vel_pid[config.joint].vel_ratio = config.joint_vel_ratio;
-    SlaveDxl.vel_pid[config.joint].Kp = config.joint_pid_Kp;
-    SlaveDxl.vel_pid[config.joint].Ki = config.joint_pid_Ki;
-    SlaveDxl.vel_pid[config.joint].Kd = config.joint_pid_Kd;
-    current_limit[config.joint] = config.joint_current_limit;
-
-    last_joint = config.joint;
-    is_first = false;
-}
