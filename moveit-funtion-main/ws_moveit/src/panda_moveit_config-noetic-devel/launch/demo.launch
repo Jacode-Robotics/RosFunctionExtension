@@ -1,0 +1,71 @@
+<launch>
+  <!-- 机械臂的标识 -->
+  <arg name="arm_id" default="panda" />
+  <!-- 默认情况下，我们将加载夹具 -->
+  <arg name="load_gripper" default="true" />
+  <!-- 默认情况下，我们将加载或覆盖robot_description -->
+  <arg name="load_robot_description" default="true"/>
+  <!-- 选择控制器管理器：fake、simple或ros_control -->
+  <arg name="moveit_controller_manager" default="fake" />
+  <!-- 为fake执行控制器设置执行模式 -->
+  <arg name="fake_execution_type" default="interpolate" />
+  <!-- 用于关节控制的transmission：position, velocity, or effort -->
+  <arg name="transmission" />
+
+
+
+  <!-- 指定规划管道 -->
+  <arg name="pipeline" default="ompl" />
+
+  <!-- 默认情况下，我们不启动数据库（它可能很大） -->
+  <arg name="db" default="false" />
+  <!-- 允许用户指定数据库位置 -->
+  <arg name="db_path" default="$(find panda_moveit_config)/default_warehouse_mongo_db" />
+
+  <!-- 默认情况下，我们不处于调试模式 -->
+  <arg name="debug" default="false" />
+  <!-- 默认情况下，在“fake”controller_manager模式下隐藏joint_state_publisher的GUI -->
+  <arg name="use_gui" default="false" />
+  <arg name="use_rviz" default="true" />
+  <!-- 使用rviz配置进行MoveIt教程 -->
+  <arg name="rviz_tutorial" default="false" />
+
+  <!-- 如果需要，为机器人根广播静态tf -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="virtual_joint_broadcaster_0" args="0 0 0 0 0 0 world $(arg arm_id)_link0" />
+
+
+
+  <group if="$(eval arg('moveit_controller_manager') == 'fake')">
+    <!-- 我们没有连接真正的机器人，因此通过joint_state_publisher发布假关节状态。Moveit的fake控制器的关节状态通过“source_list”参数进行考虑 -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" unless="$(arg use_gui)">
+      <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam>
+    </node>
+    <!-- 如果需要，可以使用GUI版本手动移动模拟机器人
+         这相当于在不使用MoveIt的情况下在真实机器人周围移动。 -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" if="$(arg use_gui)">
+      <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam>
+    </node>
+
+    <!-- 给定已发布的联合状态，发布机器人连杆的tf -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
+  </group>
+
+  <!-- 运行主MoveIt可执行文件，不执行轨迹（默认情况下我们没有配置控制器） -->
+  <include file="$(dirname)/move_group.launch" pass_all_args="true">
+    <arg name="allow_trajectory_execution" value="true" />
+    <arg name="info" value="true" />
+  </include>
+
+  <!-- 运行Rviz并加载默认配置以查看move_group节点的状态 -->
+  <include file="$(dirname)/moveit_rviz.launch" if="$(arg use_rviz)">
+    <arg name="rviz_tutorial" value="$(arg rviz_tutorial)"/>
+    <arg name="rviz_config" value="$(dirname)/moveit.rviz"/>
+    <arg name="debug" value="$(arg debug)"/>
+  </include>
+
+  <!-- 如果启用了数据库加载，也启动mongodb -->
+  <include file="$(dirname)/default_warehouse_db.launch" if="$(arg db)">
+    <arg name="moveit_warehouse_database_path" value="$(arg db_path)"/>
+  </include>
+
+</launch>

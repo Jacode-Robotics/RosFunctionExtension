@@ -1,0 +1,8 @@
+srdfdom
+/home/hzw/ws_moveit/devel/.private/srdfdom/cmake.lock /home/hzw/ws_moveit/devel/./cmake.lock
+/home/hzw/ws_moveit/devel/.private/srdfdom/share/srdfdom/cmake/srdfdomConfig.cmake /home/hzw/ws_moveit/devel/share/srdfdom/cmake/srdfdomConfig.cmake
+/home/hzw/ws_moveit/devel/.private/srdfdom/share/srdfdom/cmake/srdfdomConfig-version.cmake /home/hzw/ws_moveit/devel/share/srdfdom/cmake/srdfdomConfig-version.cmake
+/home/hzw/ws_moveit/devel/.private/srdfdom/lib/libsrdfdom.so.0.6.4 /home/hzw/ws_moveit/devel/lib/libsrdfdom.so.0.6.4
+/home/hzw/ws_moveit/devel/.private/srdfdom/lib/libsrdfdom.so /home/hzw/ws_moveit/devel/lib/libsrdfdom.so
+/home/hzw/ws_moveit/devel/.private/srdfdom/lib/python3/dist-packages/srdfdom/__init__.py /home/hzw/ws_moveit/devel/lib/python3/dist-packages/srdfdom/__init__.py
+/home/hzw/ws_moveit/devel/.private/srdfdom/lib/pkgconfig/srdfdom.pc /home/hzw/ws_moveit/devel/lib/pkgconfig/srdfdom.pc

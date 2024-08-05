@@ -1,0 +1,29 @@
+<launch>
+  <!-- 默认情况下，我们不会覆盖URDF。将以下内容更改为true以更改默认行为 -->
+  <arg name="load_gripper" default="true" />     <!-- 是否加载夹爪 -->
+  <arg name="load_robot_description" default="false"/>  <!-- 是否加载机器人描述 -->
+  <arg name="arm_id" default="panda" />     <!-- 机械臂的标识 -->
+
+  <!-- 加载URDF的参数的名称 -->
+  <arg name="robot_description" default="robot_description"/>
+
+  <!-- 加载通用机器人描述格式（URDF） -->
+  <param if="$(arg load_robot_description)" name="$(arg robot_description)"
+         command="xacro '$(find franka_description)/robots/panda/panda.urdf.xacro' hand:=$(arg load_gripper) arm_id:=$(arg arm_id)" />
+
+  <!-- 与URDF对应的语义描述 -->
+  <param name="$(arg robot_description)_semantic" command="xacro '$(find panda_moveit_config)/config/panda.srdf.xacro' hand:=$(arg load_gripper) arm_id:=$(arg arm_id)" />
+
+  <!-- 加载更新的关节限制（覆盖来自URDF的信息） -->
+  <group ns="$(arg robot_description)_planning">
+    <rosparam command="load" file="$(find panda_moveit_config)/config/joint_limits.yaml" subst_value="true" />
+    <rosparam command="load" file="$(find panda_moveit_config)/config/cartesian_limits.yaml" subst_value="true"/>
+  </group>
+
+  <!-- 加载运动学的默认设置；这些设置被节点命名空间中的设置覆盖 -->
+  <group ns="$(arg robot_description)_kinematics">
+    <rosparam command="load" file="$(find panda_moveit_config)/config/kinematics.yaml" subst_value="true"/>
+
+  </group>
+
+</launch>
