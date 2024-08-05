@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: model
+    relative_path: xacro/model/my_arm.xacro
+    xacro_args: ""
+  SRDF:
+    relative_path: config/arm_dyn.srdf
+  CONFIG:
+    author_name: hzw
+    author_email: huangzhenwen@jacode.cn
+    generated_timestamp: 1722576219

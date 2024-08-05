@@ -1,0 +1,66 @@
+# 运动规划算法配置文件（即计算运动学逆解）
+
+arm_group:
+  # KDL 运动学插件包裹了 Orocos KDL 包提供的数值逆运动学求解器。
+  # 这是 MoveIt 当前使用的默认运动学插件
+  # 它遵守 URDF 中指定的关节限制（如果 URDF 中指定了安全限制，则会使用安全限制）。
+  # KDL 运动学插件目前仅适用于串行链。
+  # 默认的KDL运动规划插件
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  kinematics_solver_search_resolution: 0.005    # 运动解算搜索步长（分辨率）
+  kinematics_solver_timeout: 0.005              # 运动解算的超时时间
+  goal_joint_tolerance: 0.0001                  # 目标关节角度误差
+  goal_position_tolerance: 0.0001               # 目标位置误差
+  goal_orientation_tolerance: 0.001             # 目标方向误差
+  kinematics_solver_attempts: 3                 # 将在解算器上执行的随机重启次数。重启后的每个解算周期将有一个由上述 kinematics_solver_timeout 参数定义的超时。一般来说，最好将此超时设置得较低，并在单个解算周期中快速失败。
+  # position_only_ik: True                        # 只需将以下行添加到您的 kinematics.yaml 文件（针对您想要解决 IK 的特定组）即可轻松启用仅位置 IK（仅当您使用 KDL Kinematics 插件时）
+
+
+  # LMA（Levenberg-Marquardt）运动学插件也包裹了 Orocos KDL 包提供的数值逆运动学求解器。
+  # 它遵守 URDF 中指定的关节限制（如果 URDF 中指定了安全限制，则会使用安全限制）。
+  # LMA 运动学插件目前仅适用于串行链
+  # kinematics_solver: lma_kinematics_plugin/LMAKinematicsPlugin
+
+
+  # Cached IK Kinematics 插件会创建 IK 解决方案的持久缓存。然后，此缓存可用于加速任何其他 IK 解算器。对 IK 解算器的调用将使用缓存中的类似状态作为 IK 解算器的种子。如果无法返回解决方案，则使用用户指定的种子状态再次调用 IK 解算器。与缓存中的状态有足够差异的新 IK 解决方案将添加到缓存中。缓存会定期保存到磁盘。
+  # 要使用缓存 IK 运动学插件，您需要修改kinematics.yaml机器人的文件。更改以下行：
+  # kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  # 更改为：
+  # kinematics_solver: cached_ik_kinematics_plugin/CachedKDLKinematicsPlugin
+  # # optional parameters for caching:
+  # max_cache_size: 10000
+  # min_pose_distance: 1
+  # min_joint_config_distance: 4
+  # 缓存大小可以通过绝对上限 ( max_cache_size) 或末端执行器姿势 ( min_pose_distance) 或机器人关节状态 ( min_joint_config_distance) 上的距离阈值来控制。通常，缓存文件保存到当前工作目录（通常是${HOME}/.ros，而不是您运行 的目录roslaunch），
+  # 在每个机器人的子目录中的kinematics_solver可能值为：
+  # cached_ik_kinematics_plugin/CachedKDLKinematicsPlugin：默认 KDL IK 解算器的包装器。
+  # cached_ik_kinematics_plugin/CachedSrvKinematicsPlugin：解算器的包装器，使用 ROS 服务调用与外部 IK 解算器进行通信。
+  # cached_ik_kinematics_plugin/CachedTRACKinematicsPlugin ： TRAC IK 解算器的包装器。只有在编译时检测到 TRAC IK 运动学插件时，此解算器才可用。
+  # cached_ik_kinematics_plugin/CachedUR5KinematicsPlugin：UR5 臂的解析 IK 解算器的包装器（UR3 和 UR10 也有类似的解算器）。这仅用于说明目的；缓存只会给解算器增加额外的开销。
+
+
+  # KDL 的收敛算法基于牛顿法，该方法在存在关节限制的情况下效果不佳——这在许多机器人平台中很常见。TRAC-IK 同时运行两个 IK 实现。
+  # 默认情况下，当这两种算法中的任何一种收敛到答案时，IK 搜索会立即返回。还提供了距离和可操作性的次要约束，以便获取“最佳”IK 解决方案。
+  # kinematics_solver: trac_ik_kinematics_plugin/TRAC_IKKinematicsPlugin
+  # kinematics_solver_timeout: 0.005              # 运动解算的超时时间
+  # position_only_ik: true
+  # solve_type: Speed                             # 解算类型，可以为 Speed, Distance, Manipulation1, Manipulation2
+  # kinematics_solver_timeout: 0.005              # 运动解算的超时时间
+  # goal_joint_tolerance: 0.0001                  # 目标关节角度误差
+  # goal_position_tolerance: 0.0001               # 目标位置误差
+  # goal_orientation_tolerance: 0.001             # 目标方向误差
+
+
+  # 此软件包旨在为具有平行底座和球形腕部的工业机器人提供更简单的 IK-Fast 解决方案替代方案。这种配置在工业机器人中极为常见。
+  # 运动学参数化由 7 个主要值组成，这些值直接取自机器人的规格表和一组关节零点偏移。有了这个结构，就不需要其他设置了。
+  # kinematics_solver: moveit_opw_kinematics_plugin/MoveItOPWKinematicsPlugin
+  # opw_kinematics_geometric_parameters:
+  #   a1:  0.025
+  #   a2: -0.035
+  #   b:   0.000
+  #   c1:  0.400
+  #   c2:  0.315
+  #   c3:  0.365
+  #   c4:  0.080
+  # opw_kinematics_joint_offsets: [0.0, -1.57079632679, 0, 0, 0, 0]
+  # opw_kinematics_joint_sign_corrections: [-1, 1, 1, -1, 1, -1]

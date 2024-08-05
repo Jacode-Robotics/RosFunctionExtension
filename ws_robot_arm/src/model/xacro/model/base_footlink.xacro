@@ -12,17 +12,6 @@
     <xacro:property name="fixed_block_length" value="2" />
     <xacro:property name="fixed_block_wide" value="2" />
 
-    <!-- create a base link -->
-    <link name="base_footlink">
-        <!-- visualization -->
-        <visual>
-            <!-- appearance -->
-            <geometry>
-                <sphere radius="0.00001" />   <!-- sphere -->
-            </geometry>
-        </visual>
-    </link>
-
     <xacro:macro name="Box_inertial_matrix" params="m l w h">
        <inertial>
             <mass value="${m}" />
@@ -60,13 +49,6 @@
         <!-- Inertia matrix -->
         <xacro:Box_inertial_matrix m="1000" l="${fixed_block_length}" w="${fixed_block_wide}" h="${fixed_block_high}" />
     </link>
-
-    <!-- Establish a connection joint between a fixed block and a positional base point -->
-    <joint name="fixed_block_joint" type="fixed"> 
-        <parent link="base_footlink" />           
-        <child link="fixed_block_link" />         
-        <origin xyz="0 0 ${fixed_block_high/2}" rpy="0 0 0" />  
-    </joint>
 
     <gazebo reference="fixed_block_link">
         <material>Gazebo/Grey</material>

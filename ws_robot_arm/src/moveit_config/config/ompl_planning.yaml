@@ -1,0 +1,257 @@
+planner_configs:
+  longest_valid_segment_fraction: 0.01  # 定义了用于碰撞检查的机器人运动的离散化，极大地影响了基于 OMPL 的解决方案的性能和可靠性
+  enforce_joint_model_state_space: false # 强制所有规划使用关节空间，这可能时规划时间大大增加
+
+  # OMPL 中有多个规划器可以提供理论上的最优性保证，但通常只是渐近的：它们会收敛到最优解，但收敛速度可能很慢。这些规划器使用的优化目标通常是最小化路径长度，但也可以使用其他优化目标。
+  # 目前 MoveIt 中可用的渐近（接近）最优规划器包括：
+  # OMPL 还提供了一种名为 AnytimePathShortening 的元优化算法，该算法重复并行运行多个规划器，并交错使用路径捷径和路径混合，这两种技术可以局部优化解决方案路径。虽然尚未证明其最佳效果，但在实践中，它通常是获得接近最优解决方案路径的有效策略。
+  AnytimePathShortening:
+    type: geometric::AnytimePathShortening
+    shortcut: true   # 尝试缩短所有新的解决方案路径
+    hybridize: true  # 计算混合解决方案轨迹
+    max_hybrid_paths: 24  # 每次迭代生成的混合路径数
+    num_planners: 4  # 用于规划的默认计划器数量
+    planners: ""  # 以逗号分隔的规划器类型列表（例如，“PRM，EST，RRTConnect”可选地，可以传递计划器参数来更改默认值："PRM[max_nearest_neighbors=5],EST[goal_bias=.5],RRT[range=10. goal_bias=.1]"
+  SBL:
+    type: geometric::SBL
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+  EST:
+    type: geometric::EST
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0 setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+  LBKPIECE:
+    type: geometric::LBKPIECE
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9
+    min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
+  BKPIECE:
+    type: geometric::BKPIECE
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9
+    failed_expansion_score_factor: 0.5  # When extending motion fails, scale score by factor. default: 0.5
+    min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
+  KPIECE:
+    type: geometric::KPIECE
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+    border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9 (0.0,1.]
+    failed_expansion_score_factor: 0.5  # When extending motion fails, scale score by factor. default: 0.5
+    min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
+  RRT:
+    type: geometric::RRT
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability? default: 0.05
+  RRTConnect:
+    type: geometric::RRTConnect
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+  RRTstar:
+    type: geometric::RRTstar
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability? default: 0.05
+    delay_collision_checking: 1  # Stop collision checking as soon as C-free parent found. default 1
+  TRRT:
+    type: geometric::TRRT
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability? default: 0.05
+    max_states_failed: 10  # when to start increasing temp. default: 10
+    temp_change_factor: 2.0  # how much to increase or decrease temp. default: 2.0
+    min_temperature: 10e-10  # lower limit of temp change. default: 10e-10
+    init_temperature: 10e-6  # initial temperature. default: 10e-6
+    frontier_threshold: 0.0  # dist new state to nearest neighbor to disqualify as frontier. default: 0.0 set in setup()
+    frontier_node_ratio: 0.1  # 1/10, or 1 nonfrontier for every 10 frontier. default: 0.1
+    k_constant: 0.0  # value used to normalize expresssion. default: 0.0 set in setup()
+  PRM:
+    type: geometric::PRM
+    max_nearest_neighbors: 10  # use k nearest neighbors. default: 10
+  PRMstar:
+    type: geometric::PRMstar
+  FMT:
+    type: geometric::FMT
+    num_samples: 1000  # number of states that the planner should sample. default: 1000
+    radius_multiplier: 1.1  # multiplier used for the nearest neighbors search radius. default: 1.1
+    nearest_k: 1  # use Knearest strategy. default: 1
+    cache_cc: 1  # use collision checking cache. default: 1
+    heuristics: 0  # activate cost to go heuristics. default: 0
+    extended_fmt: 1  # activate the extended FMT*: adding new samples if planner does not finish successfully. default: 1
+  BFMT:
+    type: geometric::BFMT
+    num_samples: 1000  # number of states that the planner should sample. default: 1000
+    radius_multiplier: 1.0  # multiplier used for the nearest neighbors search radius. default: 1.0
+    nearest_k: 1  # use the Knearest strategy. default: 1
+    balanced: 0  # exploration strategy: balanced true expands one tree every iteration. False will select the tree with lowest maximum cost to go. default: 1
+    optimality: 1  # termination strategy: optimality true finishes when the best possible path is found. Otherwise, the algorithm will finish when the first feasible path is found. default: 1
+    heuristics: 1  # activates cost to go heuristics. default: 1
+    cache_cc: 1  # use the collision checking cache. default: 1
+    extended_fmt: 1  # Activates the extended FMT*: adding new samples if planner does not finish successfully. default: 1
+  PDST:
+    type: geometric::PDST
+  STRIDE:
+    type: geometric::STRIDE
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+    use_projected_distance: 0  # whether nearest neighbors are computed based on distances in a projection of the state rather distances in the state space itself. default: 0
+    degree: 16  # desired degree of a node in the Geometric Near-neightbor Access Tree (GNAT). default: 16
+    max_degree: 18  # max degree of a node in the GNAT. default: 12
+    min_degree: 12  # min degree of a node in the GNAT. default: 12
+    max_pts_per_leaf: 6  # max points per leaf in the GNAT. default: 6
+    estimated_dimension: 0.0  # estimated dimension of the free space. default: 0.0
+    min_valid_path_fraction: 0.2  # Accept partially valid moves above fraction. default: 0.2
+  BiTRRT:
+    type: geometric::BiTRRT
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    temp_change_factor: 0.1  # how much to increase or decrease temp. default: 0.1
+    init_temperature: 100  # initial temperature. default: 100
+    frontier_threshold: 0.0  # dist new state to nearest neighbor to disqualify as frontier. default: 0.0 set in setup()
+    frontier_node_ratio: 0.1  # 1/10, or 1 nonfrontier for every 10 frontier. default: 0.1
+    cost_threshold: 1e300  # the cost threshold. Any motion cost that is not better will not be expanded. default: inf
+  LBTRRT:
+    type: geometric::LBTRRT
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+    epsilon: 0.4  # optimality approximation factor. default: 0.4
+  BiEST:
+    type: geometric::BiEST
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+  ProjEST:
+    type: geometric::ProjEST
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+  LazyPRM:
+    type: geometric::LazyPRM
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+  LazyPRMstar:
+    type: geometric::LazyPRMstar
+  SPARS:
+    type: geometric::SPARS
+    stretch_factor: 3.0  # roadmap spanner stretch factor. multiplicative upper bound on path quality. It does not make sense to make this parameter more than 3. default: 3.0
+    sparse_delta_fraction: 0.25  # delta fraction for connection distance. This value represents the visibility range of sparse samples. default: 0.25
+    dense_delta_fraction: 0.001  # delta fraction for interface detection. default: 0.001
+    max_failures: 1000  # maximum consecutive failure limit. default: 1000
+  SPARStwo:
+    type: geometric::SPARStwo
+    stretch_factor: 3.0  # roadmap spanner stretch factor. multiplicative upper bound on path quality. It does not make sense to make this parameter more than 3. default: 3.0
+    sparse_delta_fraction: 0.25  # delta fraction for connection distance. This value represents the visibility range of sparse samples. default: 0.25
+    dense_delta_fraction: 0.001  # delta fraction for interface detection. default: 0.001
+    max_failures: 5000  # maximum consecutive failure limit. default: 5000
+  AITstar:
+    type: geometric::AITstar
+    use_k_nearest: 1  # whether to use a k-nearest RGG connection model (1) or an r-disc model (0). Default: 1
+    rewire_factor: 1.001  # rewire factor of the RGG. Valid values: [1.0:0.01:3.0]. Default: 1.001
+    samples_per_batch: 100  # batch size. Valid values: [1:1:1000]. Default: 100
+    use_graph_pruning: 1  # enable graph pruning (1) or not (0). Default: 1
+    find_approximate_solutions: 0  # track approximate solutions (1) or not (0). Default: 0
+    set_max_num_goals: 1  # maximum number of goals sampled from sampleable goal regions. Valid values: [1:1:1000]. Default: 1
+  ABITstar:
+    type: geometric::ABITstar
+    use_k_nearest: 1  # whether to use a k-nearest RGG connection model (1) or an r-disc model (0). Default: 1
+    rewire_factor: 1.001  # rewire factor of the RGG. Valid values: [1.0:0.01:3.0]. Default: 1.001
+    samples_per_batch: 100  # batch size. Valid values: [1:1:1000]. Default: 100
+    use_graph_pruning: 1  # enable graph pruning (1) or not (0). Default: 1
+    prune_threshold_as_fractional_cost_change: 0.1  # fractional change in the solution cost AND problem measure necessary for pruning to occur. Default: 0.1
+    delay_rewiring_to_first_solution: 0  # delay (1) or not (0) rewiring until a solution is found. Default: 0
+    use_just_in_time_sampling: 0  # delay the generation of samples until they are * necessary. Only works with r-disc connection and path length minimization. Default: 0
+    drop_unconnected_samples_on_prune: 0  # drop unconnected samples when pruning, regardless of their heuristic value. Default: 0
+    stop_on_each_solution_improvement: 0  # stop the planner each time a solution improvement is found. Useful for debugging. Default: 0
+    use_strict_queue_ordering: 0  # sort edges in the queue at the end of the batch (0) or after each rewiring (1). Default: 0
+    find_approximate_solutions: 0  # track approximate solutions (1) or not (0). Default: 0
+    initial_inflation_factor: 1000000  # inflation factor for the initial search. Valid values: [1.0:0.01:1000000.0]. Default: 1000000
+    inflation_scaling_parameter: 10  # scaling parameter for the inflation factor update policy. Valid values: [1.0:0.01:1000000.0]. Default: 0
+    truncation_scaling_parameter: 5.0  # scaling parameter for the truncation factor update policy. Valid values: [1.0:0.01:1000000.0]. Default: 0
+  BITstar:
+    type: geometric::BITstar
+    use_k_nearest: 1  # whether to use a k-nearest RGG connection model (1) or an r-disc model (0). Default: 1
+    rewire_factor: 1.001  # rewire factor of the RGG. Valid values: [1.0:0.01:3.0]. Default: 1.001
+    samples_per_batch: 100  # batch size. Valid values: [1:1:1000]. Default: 100
+    use_graph_pruning: 1  # enable graph pruning (1) or not (0). Default: 1
+    prune_threshold_as_fractional_cost_change: 0.1  # fractional change in the solution cost AND problem measure necessary for pruning to occur. Default: 0.1
+    delay_rewiring_to_first_solution: 0  # delay (1) or not (0) rewiring until a solution is found. Default: 0
+    use_just_in_time_sampling: 0  # delay the generation of samples until they are * necessary. Only works with r-disc connection and path length minimization. Default: 0
+    drop_unconnected_samples_on_prune: 0  # drop unconnected samples when pruning, regardless of their heuristic value. Default: 0
+    stop_on_each_solution_improvement: 0  # stop the planner each time a solution improvement is found. Useful for debugging. Default: 0
+    use_strict_queue_ordering: 0  # sort edges in the queue at the end of the batch (0) or after each rewiring (1). Default: 0
+    find_approximate_solutions: 0  # track approximate solutions (1) or not (0). Default: 0
+arm_group:
+  planner_configs:
+    - AnytimePathShortening
+    - SBL
+    - EST
+    - LBKPIECE
+    - BKPIECE
+    - KPIECE
+    - RRT
+    - RRTConnect
+    - RRTstar
+    - TRRT
+    - PRM
+    - PRMstar
+    - FMT
+    - BFMT
+    - PDST
+    - STRIDE
+    - BiTRRT
+    - LBTRRT
+    - BiEST
+    - ProjEST
+    - LazyPRM
+    - LazyPRMstar
+    - SPARS
+    - SPARStwo
+    - AITstar
+    - ABITstar
+    - BITstar
+hand_group:
+  planner_configs:
+    - AnytimePathShortening
+    - SBL
+    - EST
+    - LBKPIECE
+    - BKPIECE
+    - KPIECE
+    - RRT
+    - RRTConnect
+    - RRTstar
+    - TRRT
+    - PRM
+    - PRMstar
+    - FMT
+    - BFMT
+    - PDST
+    - STRIDE
+    - BiTRRT
+    - LBTRRT
+    - BiEST
+    - ProjEST
+    - LazyPRM
+    - LazyPRMstar
+    - SPARS
+    - SPARStwo
+    - AITstar
+    - ABITstar
+    - BITstar
+
+  # 可得到的优化目标包括（默认为PathLengthOptimizationObjective）：
+  # PathLengthOptimizationObjective (Default)
+  # MechanicalWorkOptimizationObjective
+  # MaximizeMinClearanceObjective
+  # StateCostIntegralObjective
+  # MinimaxObjective
+  # 这些优化目标的配置可以在ompl_planning.yaml中完成。一个名为optimization_objective的参数被添加为配置参数。该参数的值设置为所选优化目标的名称。例如，要配置 RRTstar 使用 MaximizeMinClearanceObjective ， ompl_planning.yaml 中的规划器条目将如下所示：
+  # RRTstarkConfigDefault:
+  #   type: geometric::RRTstar
+  #   optimization_objective: MaximizeMinClearanceObjective
+  #   range: 0.0
+  #   goal_bias: 0.05
+  #   delay_collision_checking: 1
+  
+  # OMPL 中的规划器通常在超过给定的时间限制时终止。但是，可以通过参数在 ompl_planning.yaml 中为每个规划器配置指定额外的规划器终止条件termination_condition。可能的值包括：
+  # Iteration[num]：num迭代次数结束后终止。此处，num应替换为正整数。
+  # CostConvergence[solutionsWindow,epsilon]：在成本（由优化目标指定）收敛后终止。该参数solutionsWindow指定用于确定规划器是否收敛的最小解决方案数。该参数epsilon是考虑收敛的阈值。这应该是一个接近 0 的正数。如果在找到新的更好的解决方案后，累积移动平均值没有发生相对分数的变化，则已达到收敛。此终止条件仅在 OMPL 1.5.0 及更新版本中可用。
+  # ExactSolution：一旦找到精确解决方案或发生超时，立即终止。这会修改任意时间/优化规划器的行为，使其在发现第一个可行解决方案时终止。
+  # timeout在所有情况下，规划器将在满足用户指定的终止条件或达到指定的时间限制时终止（以先发生者为准）。
+  # 例如，要指定 RRTstar 应在收敛时终止，可以使用以下设置：
+  # RRTstarkConfigDefault:
+  #   type: geometric::RRTstar
+  #   termination_condition: CostConvergence[10,.1]
+  #   range: 0.0
+  #   goal_bias: 0.05
+  #   delay_collision_checking: 1

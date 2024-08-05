@@ -1,0 +1,23 @@
+hand_controller:
+  type: effort_controllers/JointTrajectoryController
+  joints:
+    - link1_7_joint
+  gains:
+    link1_7_joint: {p: 45.0, i: 0.2, d: 0}
+    
+arm_controller:
+  type: effort_controllers/JointTrajectoryController
+  joints:
+    - link1_1_joint
+    - link1_2_joint
+    - link1_3_joint
+    - link1_4_joint
+    - link1_5_joint
+    - link1_6_joint
+  gains:
+    link1_1_joint: {p: 300.0, i: 0.5, d: 0.1}
+    link1_2_joint: {p: 400.0, i: 0.6, d: 0.2}
+    link1_3_joint: {p: 80.0, i: 0.22, d: 0}
+    link1_4_joint: {p: 80.0, i: 0.2, d: 0}
+    link1_5_joint: {p: 45.0, i: 0.2, d: 0}
+    link1_6_joint: {p: 45.0, i: 0.2, d: 0}
